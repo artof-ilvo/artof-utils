@@ -26,7 +26,7 @@ jobs:
     env:
       ILVO_PATH: tests/files/robot
       # The hostname used to communicate with the Redis service container
-      REDIS_HOST: localhost
+      REDIS_HOST: redis
       # The default Redis port
       REDIS_PORT: 6379
 
@@ -46,6 +46,11 @@ jobs:
           pip install --upgrade pip
           pip install coverage pytest
           pip install -r requirements.txt
+
+      - name: Check Redis connection
+        run: |
+          echo "Is Redis Working?"
+          redis-cli -h $REDIS_HOST -p $REDIS_PORT PING
 
       - name: Run unit tests
         run: |
