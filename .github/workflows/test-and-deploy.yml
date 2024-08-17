@@ -64,8 +64,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: python:3.10-slim-bullseye
-      
-    if: github.ref == 'refs/heads/master'
 
     steps:
       - name: Checkout code
