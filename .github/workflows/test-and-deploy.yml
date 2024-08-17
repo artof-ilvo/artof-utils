@@ -82,7 +82,7 @@ jobs:
 
       - name: Deploy to PyPI
         run: |
-          python3 -m twine upload -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} -r testpypi dist/*
+          python3 -m twine upload -u "${{ secrets.PYPI_USERNAME }}" -p "${{ secrets.PYPI_PASSWORD }}" -r testpypi dist/*
 
       - name: Application successfully deployed
         run: echo "Application successfully deployed."
