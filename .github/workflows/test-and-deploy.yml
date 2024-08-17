@@ -60,6 +60,7 @@ jobs:
           coverage report
 
   deploy-job:
+    needs: test-job
     name: Deploy Job
     runs-on: ubuntu-latest
     container:
@@ -84,7 +85,6 @@ jobs:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |
-          python prepare-package-registry.py
           python3 -m twine upload --repository-url https://upload.pypi.org/legacy/ dist/*
 
       - name: Application successfully deployed
