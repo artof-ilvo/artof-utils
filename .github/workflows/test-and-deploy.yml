@@ -81,8 +81,12 @@ jobs:
           python -m build
 
       - name: Deploy to PyPI
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_PASSWORD }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_USERNAME }}
         run: |
-          python3 -m twine upload -u '${{ secrets.PYPI_USERNAME }}' -p '${{ secrets.PYPI_PASSWORD }}' --repository testpypi dist/*
+          python setup.py sdist bdist_wheel
+          twine upload dist/*
 
       - name: Application successfully deployed
         run: echo "Application successfully deployed."

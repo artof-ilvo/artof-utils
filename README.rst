@@ -29,7 +29,6 @@ Build (No CI/CD)
 .. code-block:: bash
 
     python -m build
-    python prepare-package-registry.py
 
 Testing (No CI/CD)
 ------------------
