@@ -12,13 +12,22 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
+      # Label used to access the service container
       redis:
+        # Docker Hub image
         image: redis/redis-stack-server:latest
-        options: --name redis -p 6379:6379
+        # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     env:
       ILVO_PATH: tests/files/robot
+      # The hostname used to communicate with the Redis service container
       REDIS_HOST: redis
+      # The default Redis port
       REDIS_PORT: 6379
 
     steps:
