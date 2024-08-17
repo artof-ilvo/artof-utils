@@ -10,30 +10,36 @@ jobs:
   test-job:
     name: Test Job
     runs-on: ubuntu-latest
+    container:
+      image: python:3.10-slim-bullseye
 
     services:
+      # Label used to access the service container
       redis:
+        # Docker Hub image
         image: redis/redis-stack-server:latest
-        options: --name redis -p 6379:6379
+        # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     env:
       ILVO_PATH: tests/files/robot
+      # The hostname used to communicate with the Redis service container
       REDIS_HOST: redis
+      # The default Redis port
       REDIS_PORT: 6379
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.10
+        uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
-          sudo apt-get update -qy
-          sudo apt-get install -y redis-tools
+          apt-get update -qy
+          apt-get install -y redis-tools
           pip install --upgrade pip
           pip install coverage pytest
           pip install -r requirements.txt
@@ -41,7 +47,7 @@ jobs:
       - name: Check Redis connection
         run: |
           echo "Is Redis Working?"
-          redis-cli -h redis PING
+          redis-cli -h $REDIS_HOST -p $REDIS_PORT PING
 
       - name: Run unit tests
         run: |
@@ -56,17 +62,14 @@ jobs:
   deploy-job:
     name: Deploy Job
     runs-on: ubuntu-latest
-
+    container:
+      image: python:3.10-slim-bullseye
+      
     if: github.ref == 'refs/heads/master'
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.10
+        uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
