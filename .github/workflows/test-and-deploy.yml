@@ -47,11 +47,6 @@ jobs:
           pip install coverage pytest
           pip install -r requirements.txt
 
-      - name: Check Redis connection
-        run: |
-          echo "Is Redis Working?"
-          redis-cli -h $REDIS_HOST PING
-
       - name: Run unit tests
         run: |
           echo "Running unit tests..."
