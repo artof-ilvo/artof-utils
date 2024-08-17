@@ -38,8 +38,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update -qy
-          sudo apt-get install -y redis-tools
+          apt-get update -qy
+          apt-get install -y redis-tools
           pip install --upgrade pip
           pip install coverage pytest
           pip install -r requirements.txt
