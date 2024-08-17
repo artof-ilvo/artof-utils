@@ -1,0 +1,11 @@
+{
+    "name": "example_discrete",
+    "tasks": [
+        {
+            "name": "Task1",
+            "type": "discrete",
+            "hitch": "RB",
+            "implement": "penetrometer"
+        }
+    ]
+}

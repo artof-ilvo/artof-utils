@@ -1,0 +1,134 @@
+{
+    "xyz": {
+        "x": "float",
+        "y": "float",
+        "z": "float"
+    },
+    "direction": {
+        "longitudinal": "float",
+        "angular": "float",
+        "lateral": "float"
+    },
+    "drive_monitor": {
+        "power": "float",
+        "voltage": "float",
+        "current": "float",
+        "rpm": "float",
+        "temperature": "float",
+        "torque": "float"
+    },
+    "wheel_monitor": {
+        "speed": "float",
+        "rpm": "float",
+        "angle": "float"
+    },
+    "battery_monitor": {
+        "soc": "float",
+        "current": "float",
+        "voltage": "float",
+        "power": "float",
+        "capacity": "float",
+        "temperature": "float"
+    },
+    "fuel_monitor": {
+        "temperature": "float",
+        "level": "float",
+        "volume": "float",
+        "type": "string"
+    },
+    "generator_monitor": {
+        "temperature": "float",
+        "rpm": "float",
+        "fuel": "fuel_monitor"
+    },
+    "imu_monitor": {
+        "acceleration": "xyz",
+        "rotation": "xyz"
+    }, 
+    "hitch_monitor": {
+        "busy": "bool",
+        "height": "float",
+        "angle": "float",
+        "feedback_sections": "array[32] of uint8"
+    },
+    "state": {
+        "safe": "bool",
+        "normal": "bool",
+        "auto": "bool",
+        "aware": "bool",
+        "steer": "bool",
+        "throttle": "bool",
+        "error": "bool"
+    },
+    "substate": {
+        "programming": "bool",
+        "dummy": "bool"
+    },
+    "hitch_control": {
+        "activate": "bool",
+        "activate_discrete": "bool",
+        "activate_continuous": "bool",
+        "activate_cardan": "bool",
+        "setpoint": "int16",
+        "activate_sections": "array[32] of uint8"
+    },
+    "navigation_control": {
+        "velocity": "direction",
+        "sideways": "bool",
+        "end_reached": "bool",
+        "heartbeat": "bool"
+    },
+    "navigation_monitor": {
+        "velocity": "direction"
+    },
+    "gps": {
+        "fix": "int",
+        "hrp_mode": "int",
+        "ground_speed": "float",
+        "slope_mode": "float"
+    },
+    "simulation": {
+        "fix": "int",
+        "active": "bool",
+        "auto": "bool",
+        "factor": "float"
+    },
+    "navigation": {
+        "non_operational_velocity": "float",
+        "operational_velocity": "float",
+        "sideways_velocity": "float",
+        "spinning_velocity": "float",
+        "max_angular_velocity": "float",
+        "mode": "int",
+        "spin_angle": "float",
+        "turning_radius": "float"
+    },
+    "purepursuit": {
+        "carrot_distance": "float",
+        "inter_point_distance": "float",
+        "weight_factor": "float"
+    },
+    "pid": {
+        "p": "float",
+        "i": "float",
+        "d": "float",
+        "integral": "float",
+        "derivative": "float",
+        "proportional": "float"
+    },
+    "path": {
+        "orientation": "float",
+        "deviation": "float"
+    },
+    "field": {
+        "name": "string",
+        "updated": "bool"
+    },
+    "implement": {
+        "slow_down": "bool"
+    },
+    "execution": {
+        "notification": "string",
+        "auto_started": "int"
+    }
+}

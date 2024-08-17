@@ -1,0 +1,53 @@
+{
+    "protocols": {
+        "snap7": {
+            "ip": "192.168.1.1",
+            "rack": 0,
+            "read_db": 35,
+            "slot": 1,
+            "write_db": 43
+        },
+        "redis": {
+            "ip": "127.0.0.1",
+            "port": 6379
+        }
+    },
+    "variables": {
+        "plc": {
+            "control": {
+                "navigation": "navigation_control",
+                "hitch_fb": "hitch_control",
+                "hitch_rb": "hitch_control",
+                "substate": "substate"
+            },
+            "monitor": {
+                "drive_fl": "drive_monitor",
+                "wheel_fl": "wheel_monitor",
+                "drive_fr": "drive_monitor",
+                "wheel_fr": "wheel_monitor",
+                "drive_rl": "drive_monitor",
+                "wheel_rl": "wheel_monitor",
+                "drive_rr": "drive_monitor",
+                "wheel_rr": "wheel_monitor",
+                "imu": "imu_monitor",
+                "hitch_fb": "hitch_monitor",
+                "hitch_rb": "hitch_monitor",
+                "navigation": "navigation_monitor",
+                "state": "state",
+                "substate": "substate"
+            }
+        },
+        "pc": {
+            "gps": "gps",
+            "simulation": "simulation",
+            "navigation": "navigation",
+            "purepursuit": "purepursuit",
+            "pid_steady_state": "pid",
+            "pid_rough": "pid",
+            "path": "path",
+            "field": "field",
+            "implement": "implement",
+            "execution": "execution"
+        }
+    }
+}

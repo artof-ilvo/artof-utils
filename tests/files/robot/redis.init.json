@@ -1,0 +1,101 @@
+{
+    "system": {
+        "ilvoProcesses": [
+            {
+                "Name": "ilvo-navigation",
+                "Running": true,
+                "SoftwareUpdate": true,
+                "CheckHeartbeat": true
+            },
+            {
+                "Name": "ilvo-operation",
+                "Running": true,
+                "SoftwareUpdate": true,
+                "CheckHeartbeat": true
+            },
+            {
+                "Name": "ilvo-simulation",
+                "Running": true,
+                "SoftwareUpdate": true,
+                "CheckHeartbeat": true
+            },
+            {
+                "Name": "ilvo-robot-plc",
+                "Running": true,
+                "SoftwareUpdate": true,
+                "CheckHeartbeat": false
+            },
+            {
+                "Name": "ilvo-gps",
+                "Running": true,
+                "SoftwareUpdate": true,
+                "CheckHeartbeat": false
+            }
+        ],
+        "ilvoAddons": [
+            {
+                "Name": "system",
+                "Running": true,
+                "SoftwareUpdate": true,
+                "DockerRegistry": {
+                    "serveraddress": "https://registry.hub.docker.com/v2/"
+                },
+                "DockerConfig": {
+                    "Image": "gitlab.ilvo.be:5050/artof-ilvo/addons/system",
+                    "HostConfig": {
+                        "Binds": [
+                            "/var/lib/ilvo:/var/lib/ilvo"
+                        ],
+                        "NetworkMode": "host",
+                        "RestartPolicy": {
+                            "Name": "on-failure",
+                            "MaximumRetryCount": 3
+                        }
+                    }
+                }
+            },
+            {
+                "Name": "node-red",
+                "Running": true,
+                "SoftwareUpdate": true,
+                "DockerRegistry": {
+                    "serveraddress": "https://registry.hub.docker.com/v2/"
+                },
+                "DockerConfig": {
+                    "Image": "nodered/node-red",
+                    "HostConfig": {
+                        "Binds": [
+                            "/var/lib/ilvo/node-red:/data",
+                            "/var/lib/ilvo/field:/var/lib/ilvo/field",
+                            "/var/lib/ilvo/implement:/var/lib/ilvo/implement",
+                            "/var/lib/ilvo/config.json:/var/lib/ilvo/config.json",
+                            "/var/lib/ilvo/settings.json:/var/lib/ilvo/settings.json",
+                            "/var/lib/ilvo/types.json:/var/lib/ilvo/types.json"
+                        ],
+                        "NetworkMode": "host",
+                        "RestartPolicy": {
+                            "Name": "on-failure",
+                            "MaximumRetryCount": 3
+                        }
+                    }
+                }
+            }
+        ]
+    },
+    "variables": {
+        "pc.simulation.fix": 4,
+        "pc.simulation.factor": 1.0,
+        "pc.navigation.non_operational_velocity": 1.0,
+        "pc.navigation.operational_velocity": 1.0,
+        "pc.navigation.sideways_velocity": 0.2,
+        "pc.navigation.spinning_velocity": 0.2,
+        "pc.navigation.max_angular_velocity": 10.0,
+        "pc.navigation.mode": 1,
+        "pc.navigation.spin_angle": 25.0,
+        "pc.navigation.turning_radius": 3.0,
+        "pc.purepursuit.carrot_distance": 3.5,
+        "pc.purepursuit.inter_point_distance": 0.1,
+        "pc.purepursuit.weight_factor": 1.0,
+        "pc.field.name": "example"
+    }
+}

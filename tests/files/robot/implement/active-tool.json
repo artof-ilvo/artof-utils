@@ -1,0 +1,17 @@
+{
+    "name": "active-tool",
+    "types": ["continuous", "intermittent"],
+    "on_taskmap": false,
+    "sections": [
+        {
+            "id": "CR",
+            "width": 0.25,
+            "up": 0.075,
+            "down": 0.075,
+            "transform": {
+				"T": [0.35, -0.98, -0.4],
+				"R": [0.0, 0.0, 0.0]
+			}
+        }
+    ]
+}

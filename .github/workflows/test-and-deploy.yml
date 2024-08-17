@@ -1,0 +1,90 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test-job:
+    name: Test Job
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis/redis-stack-server:latest
+        options: --name redis -p 6379:6379
+
+    env:
+      ILVO_PATH: tests/files/robot
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qy
+          sudo apt-get install -y redis-tools
+          pip install --upgrade pip
+          pip install coverage pytest
+          pip install -r requirements.txt
+
+      - name: Check Redis connection
+        run: |
+          echo "Is Redis Working?"
+          redis-cli -h redis PING
+
+      - name: Run unit tests
+        run: |
+          echo "Running unit tests..."
+          coverage run -m pytest tests/test_*.py
+
+      - name: Coverage report
+        run: |
+          echo "Coverage unit tests..."
+          coverage report
+
+  deploy-job:
+    name: Deploy Job
+    runs-on: ubuntu-latest
+
+    if: github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install build twine
+          pip install -r requirements.txt
+
+      - name: Build the package
+        run: |
+          python -m build
+
+      - name: Deploy to PyPI
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: |
+          python prepare-package-registry.py
+          python3 -m twine upload --repository-url https://upload.pypi.org/legacy/ dist/*
+
+      - name: Application successfully deployed
+        run: echo "Application successfully deployed."

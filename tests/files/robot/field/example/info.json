@@ -1,0 +1,17 @@
+{
+    "name": "example",
+    "tasks": [
+        {
+            "name": "Task1",
+            "type": "hitch",
+            "hitch": "FB",
+            "points": null
+        },
+        {
+            "name": "Task2",
+            "type": "continuous",
+            "hitch": "FB",
+            "points": null
+        }
+    ]
+}

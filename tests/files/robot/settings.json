@@ -1,0 +1,126 @@
+{
+    "name": "cimat",
+    "robot": {
+        "width": 1.5,
+        "length": 3.8,
+        "wheel_diameter": 0.7,
+        "transform": {
+            "T": [
+                0,
+                -1.0029,
+                -1.93
+            ],
+            "R": [
+                0,
+                0,
+                0
+            ]
+        }
+    },
+    "auto_velocity": {
+        "min": 0.2,
+        "max": 1.7
+    },
+    "nav_modes": [
+        {
+            "id": 1,
+            "name": "pp 90\u00b0 turn"
+        },
+        {
+            "id": 2,
+            "name": "pp 180\u00b0 turn"
+        },
+        {
+            "id": 3,
+            "name": "pure pp"
+        },
+        {
+            "id": 4,
+            "name": "pp rollback"
+        },
+        {
+            "id": 5,
+            "name": "external"
+        }
+    ],
+    "auto_modes": [
+        {
+            "id": 1,
+            "name": "auto"
+        }
+    ],
+    "hitches": [
+        {
+            "id": 2,
+            "name": "FB",
+            "min": 10,
+            "max": 65,
+            "types": [
+                "hitch",
+                "continuous",
+                "discrete",
+                "intermittent"
+            ],
+            "transform": {
+                "T": [
+                    0,
+                    0.3314,
+                    -1.3831
+                ],
+                "R": [
+                    0,
+                    0,
+                    0
+                ]
+            },
+            "link_length": 0.601
+        },
+        {
+            "id": 4,
+            "name": "RB",
+            "min": 10,
+            "max": 58,
+            "types": [
+                "hitch",
+                "continuous",
+                "discrete",
+                "intermittent"
+            ],
+            "transform": {
+                "T": [
+                    0,
+                    -2.45,
+                    -1.2
+                ],
+                "R": [
+                    0,
+                    0,
+                    0
+                ]
+            },
+            "link_length": 0.55
+        }
+    ],
+    "gps": {
+        "device": "serial",
+        "utm_zone": 31,
+        "usb_port": "/dev/septentrio0",
+        "ntrip_server": "flepos.vlaanderen.be",
+        "ntrip_mountpoint": "<ntrip_mountpoint>",
+        "ntrip_uname": "<ntrip_uname>",
+        "ntrip_pwd": "<ntrip_pwd>",
+        "antenna_rotation": -90,
+        "transform": {
+            "T": [
+                -0.68064,
+                0,
+                0
+            ],
+            "R": [
+                0,
+                0,
+                0
+            ]
+        }
+    }
+}
