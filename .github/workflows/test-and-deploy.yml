@@ -10,6 +10,8 @@ jobs:
   test-job:
     name: Test Job
     runs-on: ubuntu-latest
+    container:
+      image: python:3.10-slim-bullseye
 
     services:
       # Label used to access the service container
@@ -26,18 +28,13 @@ jobs:
     env:
       ILVO_PATH: tests/files/robot
       # The hostname used to communicate with the Redis service container
-      REDIS_HOST: 127.0.0.1
+      REDIS_HOST: redis
       # The default Redis port
       REDIS_PORT: 6379
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
 
       - name: Install dependencies
         run: |
@@ -65,17 +62,14 @@ jobs:
   deploy-job:
     name: Deploy Job
     runs-on: ubuntu-latest
-
+    container:
+      image: python:3.10-slim-bullseye
+      
     if: github.ref == 'refs/heads/master'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
 
       - name: Install dependencies
         run: |
