@@ -78,6 +78,8 @@ class TestFields(TestCase):
 
     def test_delete_field(self):
         # Arrange
+        # select field example
+        Fields().select_field('example')
         # Create new field
         new_field = Field('field_new')
         # Act
