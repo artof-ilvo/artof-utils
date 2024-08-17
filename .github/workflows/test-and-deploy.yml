@@ -50,7 +50,7 @@ jobs:
       - name: Check Redis connection
         run: |
           echo "Is Redis Working?"
-          redis-cli -h redis PING
+          redis-cli -h $REDIS_HOST PING
 
       - name: Run unit tests
         run: |
