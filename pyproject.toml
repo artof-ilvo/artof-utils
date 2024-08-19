@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "artof_utils"
-version = "0.1.0"
+version = "0.0.1"
 authors = [
     { name="Axel Willekens", email="axel.willekens@ilvo.vlaanderen.be" }
 ]
