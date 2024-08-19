@@ -9,6 +9,7 @@ authors = [
     { name="Axel Willekens", email="axel.willekens@ilvo.vlaanderen.be" }
 ]
 description = "The ARTOF framework utils"
+readme = "README.md"
 requires-python = ">=3.7"
 classifiers = [
    "Programming Language :: Python :: 3",
