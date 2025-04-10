@@ -98,16 +98,15 @@ class AutoMode(BaseModel):
 
 class Gps(BaseModel):
     device: str
-    utm_zone: int
+    utm_zone: Optional[int] = None
     udp_port: Optional[int] = None
     ip: Optional[str] = None
-    usb_port: Optional[str]
-    ntrip_server: Optional[str]
-    ntrip_mountpoint: Optional[str]
-    ntrip_uname: Optional[str]
-    ntrip_pwd: Optional[str]
+    usb_port: Optional[str] = None
+    ntrip_server: Optional[str] = None
+    ntrip_mountpoint: Optional[str] = None
+    ntrip_uname: Optional[str] = None
+    ntrip_pwd: Optional[str] = None
     transform: Transform
-
 
 class PlatformSettings(BaseModel):
     name: str

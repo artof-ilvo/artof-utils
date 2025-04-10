@@ -12,6 +12,7 @@ from artof_utils.helpers import polygon
 from artof_utils.schemas.settings import AutoMode
 from artof_utils.redis_instance import redis_server
 from shapely.geometry import Point
+import artof_utils.paths as paths
 
 
 # Robot Manager
@@ -31,9 +32,10 @@ class RobotManager(metaclass=Singleton):
         self.platform_settings = None
         self.field = None
 
-        # Load settings and field from configuration files
-        self.load_settings()
-        self.load_field()
+        if paths.loaded:
+            # Load settings and field from configuration files
+            self.load_settings()
+            self.load_field()
 
         # Initialize Hitches and Navigation objects
         self.hitches = Hitches()
@@ -60,7 +62,10 @@ class RobotManager(metaclass=Singleton):
     # Getter and setters
     @staticmethod
     def get_navigation_modes():
-        return [(mode.id, mode.name) for mode in robot_manager.platform_settings.nav_modes]
+        if robot_manager.platform_settings is None:
+            return [(1, 'pp 90\u00b0 turn'), (2, 'pp 180\u00b0 turn'), (3, 'pure pp'), (4, 'pp rollback'), (5, 'external')]
+        else:
+            return [(mode.id, mode.name) for mode in robot_manager.platform_settings.nav_modes]
 
     def get_navigation_states(self):
         """
@@ -70,7 +75,10 @@ class RobotManager(metaclass=Singleton):
         Returns:
             list: A list of navigation state names.
         """
-        auto_modes_settings = [AutoMode.model_validate({'name': 'normal', 'id': 0})] + self.platform_settings.auto_modes
+        if self.platform_settings is None:
+            auto_modes_settings = [AutoMode.model_validate({'name': 'normal', 'id': 0}), AutoMode.model_validate({'name': 'auto', 'id': 1})]
+        else:
+            auto_modes_settings = [AutoMode.model_validate({'name': 'normal', 'id': 0})] + self.platform_settings.auto_modes
         state_names = [auto_mode_setting.name for auto_mode_setting in auto_modes_settings]
         return state_names
 

@@ -9,6 +9,10 @@
         "angular": "float",
         "lateral": "float"
     },
+    "saturation": {
+        "min": "float",
+        "max": "float"
+    },
     "drive_monitor": {
         "power": "float",
         "voltage": "float",
@@ -106,29 +110,40 @@
     "purepursuit": {
         "carrot_distance": "float",
         "inter_point_distance": "float",
-        "weight_factor": "float"
+        "weight_factor": "float", 
+        "curvature_default": "float",
+        "curvature": "float",
+        "pid": "pid"
+    },
+    "lateral_controller": {
+        "steady_state": "pid",
+        "rough": "pid",
+        "enable": "bool"
     },
     "pid": {
         "p": "float",
         "i": "float",
         "d": "float",
+        "saturation": "saturation",
         "integral": "float",
         "derivative": "float",
-        "proportional": "float"
+        "proportional": "float",
+        "value": "float"
     },
     "path": {
         "orientation": "float",
-        "deviation": "float"
+        "orientation_error": "float",
+        "distance_error": "float"
     },
     "field": {
         "name": "string",
         "updated": "bool"
     },
     "implement": {
-        "slow_down": "bool"
+        "slow_down": "bool",
+        "disable": "bool"
     },
     "execution": {
-        "notification": "string",
-        "auto_started": "int"
+        "notification": "string"
     }
 }

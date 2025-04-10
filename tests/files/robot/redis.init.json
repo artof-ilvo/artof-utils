@@ -41,17 +41,30 @@
                     "serveraddress": "https://registry.hub.docker.com/v2/"
                 },
                 "DockerConfig": {
-                    "Image": "gitlab.ilvo.be:5050/artof-ilvo/addons/system",
+                    "Image": "axelwillekens/artof-system",
                     "HostConfig": {
                         "Binds": [
-                            "/var/lib/ilvo:/var/lib/ilvo"
+                            "/d/artof-docker/docker/data:/var/lib/ilvo"
                         ],
-                        "NetworkMode": "host",
                         "RestartPolicy": {
                             "Name": "on-failure",
                             "MaximumRetryCount": 3
-                        }
-                    }
+                        },
+                        "PortBindings": {
+                            "80/tcp": [
+                                {
+                                    "HostPort": "8080"
+                                }
+                            ]
+                        },
+                        "NetworkMode": "ilvo_artof_network"
+                    },
+                    "ExposedPorts": {
+                        "80/tcp": {}
+                    },
+                    "Env": [
+                        "REDIS_HOST=redis"
+                    ]
                 }
             },
             {
@@ -65,18 +78,29 @@
                     "Image": "nodered/node-red",
                     "HostConfig": {
                         "Binds": [
-                            "/var/lib/ilvo/node-red:/data",
-                            "/var/lib/ilvo/field:/var/lib/ilvo/field",
-                            "/var/lib/ilvo/implement:/var/lib/ilvo/implement",
-                            "/var/lib/ilvo/config.json:/var/lib/ilvo/config.json",
-                            "/var/lib/ilvo/settings.json:/var/lib/ilvo/settings.json",
-                            "/var/lib/ilvo/types.json:/var/lib/ilvo/types.json"
+                            "/d/artof-docker/docker/data/node-red:/data",
+                            "/d/artof-docker/docker/data/field:/var/lib/ilvo/field",
+                            "/d/artof-docker/docker/data/implement:/var/lib/ilvo/implement",
+                            "/d/artof-docker/docker/data/config.json:/var/lib/ilvo/config.json",
+                            "/d/artof-docker/docker/data/settings.json:/var/lib/ilvo/settings.json",
+                            "/d/artof-docker/docker/data/types.json:/var/lib/ilvo/types.json",
+                            "/d/artof-docker/docker/data/redis.init.json:/var/lib/ilvo/redis.init.json"
                         ],
-                        "NetworkMode": "host",
                         "RestartPolicy": {
                             "Name": "on-failure",
                             "MaximumRetryCount": 3
-                        }
+                        },
+                        "PortBindings": {
+                            "1880/tcp": [
+                                {
+                                    "HostPort": "1880"
+                                }
+                            ]
+                        },
+                        "NetworkMode": "ilvo_artof_network"
+                    },
+                    "ExposedPorts": {
+                        "1880/tcp": {}
                     }
                 }
             }
@@ -85,6 +109,7 @@
     "variables": {
         "pc.simulation.fix": 4,
         "pc.simulation.factor": 1.0,
+        "pc.simulation.active": true,
         "pc.navigation.non_operational_velocity": 1.0,
         "pc.navigation.operational_velocity": 1.0,
         "pc.navigation.sideways_velocity": 0.2,
@@ -96,6 +121,8 @@
         "pc.purepursuit.carrot_distance": 3.5,
         "pc.purepursuit.inter_point_distance": 0.1,
         "pc.purepursuit.weight_factor": 1.0,
+        "pc.purepursuit.pid.saturation.min": -1.0,
+        "pc.purepursuit.pid.saturation.max": 1.0,
         "pc.field.name": "example"
     }
 }
