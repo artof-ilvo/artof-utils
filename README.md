@@ -23,7 +23,7 @@ pip install twine
 2. Build and publish the package
 
 ```bash
-    python -m build
+python -m build
 ```
 
 ## Testing (No CI/CD)

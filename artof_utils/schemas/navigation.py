@@ -1,6 +1,14 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, BeforeValidator
+from typing import Optional, Any, Annotated
 from artof_utils.redis_instance import redis_server
+
+def parse_float(value: Any) -> float:
+    if isinstance(value, str):
+        return float(value) if value != '' else 0.0
+    elif isinstance(value, float):
+        return value
+    else:
+        return 0.0
 
 
 class Navigation(BaseModel):
@@ -8,16 +16,16 @@ class Navigation(BaseModel):
     non_operational_velocity: float
     operational_velocity: float
     carrot_distance: Optional[float]
-    weight_factor: Optional[float] = 0.0
-    kp_purepursuit: Optional[float] = 0.0
-    ki_purepursuit: Optional[float] = 0.0
-    kd_purepursuit: Optional[float] = 0.0
-    kp_steady_state: Optional[float] = 0.0
-    ki_steady_state: Optional[float] = 0.0
-    kd_steady_state: Optional[float] = 0.0
-    kp_rough: Optional[float] = 0.0
-    ki_rough: Optional[float] = 0.0
-    kd_rough: Optional[float] = 0.0
+    weight_factor: Annotated[float,BeforeValidator(parse_float)]
+    kp_purepursuit: Annotated[float,BeforeValidator(parse_float)]
+    ki_purepursuit: Annotated[float,BeforeValidator(parse_float)]
+    kd_purepursuit: Annotated[float,BeforeValidator(parse_float)]
+    kp_steady_state: Annotated[float,BeforeValidator(parse_float)]
+    ki_steady_state: Annotated[float,BeforeValidator(parse_float)]
+    kd_steady_state: Annotated[float,BeforeValidator(parse_float)]
+    kp_rough: Annotated[float,BeforeValidator(parse_float)]
+    ki_rough: Annotated[float,BeforeValidator(parse_float)]
+    kd_rough: Annotated[float,BeforeValidator(parse_float)]
 
     redis_variables: list[str]
 
