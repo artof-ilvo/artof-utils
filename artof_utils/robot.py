@@ -11,8 +11,11 @@ from artof_utils.helpers import shape as shp
 from artof_utils.helpers import polygon
 from artof_utils.schemas.settings import AutoMode
 from artof_utils.redis_instance import redis_server
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon, MultiPoint, MultiPolygon
 import artof_utils.paths as paths
+import geopandas as gpd
+from pyproj import CRS
+import json
 
 
 # Robot Manager
@@ -58,6 +61,9 @@ class RobotManager(metaclass=Singleton):
         """Loads the current field configuration based on the field name."""
         print("Load Field")
         self.field = Field(get_current_field_name())
+
+    def get_field(self):
+        return self.field
 
     # Getter and setters
     @staticmethod
@@ -209,20 +215,49 @@ class RobotManager(metaclass=Singleton):
                                                     "robot.contour", "hitch.states", "implement.states",
                                                     "navigation.controller.info"])
         r = dict()
+        wgs84_crs = 'EPSG:4326'  # WGS 84
 
-        r['robot'] = {'contours': redis_data['robot.contour'],
-                      'center': redis_data['robot.center.state']['point'],
-                      'ref': redis_data['robot.ref.state']['point'],
-                      'head': redis_data['robot.head.state']['point'],
-                      'orientation': redis_data['navigation.controller.info']['heading']}
-        # Add each hitch
-        r['hitches'] = redis_data['hitch.states']
+
+        # Robot specific data
+        r['center'] = redis_data['robot.center.state']['point']['lnglat']
+        r['orientation'] = redis_data['navigation.controller.info']['heading']
+        contour_polygon = gpd.GeoDataFrame(geometry=[Polygon(redis_data['robot.contour']['lnglat'])], crs=CRS(wgs84_crs))
+        r['contour'] = json.loads(contour_polygon.to_json())
+
+        # Hitches
+        active_hitches = []
+        inactive_hitches = []
+        for _, hitch in redis_data['hitch.states'].items():
+            coord = Point(hitch['state']['ball']['point']['lnglat'])
+            if hitch['activate']:
+                active_hitches.append(coord)
+            else:
+                inactive_hitches.append(coord)
+        active_hitch_points = gpd.GeoDataFrame(geometry=active_hitches, crs=CRS(wgs84_crs))
+        inactive_hitch_points = gpd.GeoDataFrame(geometry=inactive_hitches, crs=CRS(wgs84_crs))
+        r['hitches_active'] = json.loads(active_hitch_points.to_json())
+        r['hitches_inactive'] = json.loads(inactive_hitch_points.to_json())
 
         # Add implements
-        r['implements'] = redis_data['implement.states']
+        active_sections = []
+        inactive_sections = []
+        for _, implement in redis_data['implement.states'].items():
+            for section in implement['sections']:
+                contour = Polygon(section['lnglat'])
+                if section['active']:
+                    active_sections.append(contour)
+                else:
+                    inactive_sections.append(contour)
+        active_section_points = gpd.GeoDataFrame(geometry=active_sections, crs=CRS(wgs84_crs))
+        inactive_section_points = gpd.GeoDataFrame(geometry=inactive_sections, crs=CRS(wgs84_crs))
+        r['sections_active'] = json.loads(active_section_points.to_json())
+        r['sections_inactive'] = json.loads(inactive_section_points.to_json())
 
         # Add controller info
-        r['controller_info'] = redis_data['navigation.controller.info']
+        controller_info = [Point(redis_data['navigation.controller.info']["carrot"]["lnglat"]),
+                                  Point(redis_data['navigation.controller.info']["closest"]["lnglat"])]
+        controller_points = gpd.GeoDataFrame(geometry=controller_info, crs=CRS(wgs84_crs))
+        r['controller'] = json.loads(controller_points.to_json())
 
         return r
 

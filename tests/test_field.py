@@ -126,7 +126,7 @@ class TestFields(TestCase):
         for task_name in ['task1', 'task2']:
             task = field_new.get_task(task_name)
             self.assertTrue(path.exists(task.shp_task.file_path))
-            self.assertEqual(task.shp_task.get_geom_type(), GeomType.POLYGON)
+            self.assertEqual(task.shp_task.geom_type, GeomType.POLYGON)
 
         task_name = [task.name for task in field_new.tasks]
         self.assertEqual(set(task_name), {'task1', 'task2', 'task3'})

@@ -1,3 +1,4 @@
+matplotlib
 redis>=4.6.0
 numpy>=1.25.1
 scipy>=1.11.1

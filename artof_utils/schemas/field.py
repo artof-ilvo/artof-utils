@@ -12,7 +12,8 @@ from artof_utils.schemas.task import Task
 from artof_utils.schemas.task import TaskInfo, HitchType, HitchName
 import artof_utils.paths as paths
 from artof_utils.redis_instance import redis_server
-from artof_utils.shapefile import Shapefile, GeomType
+from artof_utils.traject import Traject
+from artof_utils.geofence import Geofence
 from artof_utils.helpers import shape as shp
 
 
@@ -102,8 +103,8 @@ class Field(BaseModel):
 
     info: FieldInfo
 
-    shp_traject: Shapefile
-    shp_geofence: Shapefile
+    shp_traject: Traject
+    shp_geofence: Geofence
 
     tasks: list[Task] = []
 
@@ -147,8 +148,8 @@ class Field(BaseModel):
                          tasks_path=tasks_path_,
                          info_file_path=info_file_path_,
                          info=field_info_,
-                         shp_traject=Shapefile(traject_path_),
-                         shp_geofence=Shapefile(geofence_path_),
+                         shp_traject=Traject(traject_path_),
+                         shp_geofence=Geofence(geofence_path_),
                          tasks=tasks_
                          )
 
@@ -172,20 +173,6 @@ class Field(BaseModel):
         geofence_geometry_ = self.shp_geofence.context
         task_geometries_ = [task.context for task in self.tasks]
 
-        # j_traject = redis_server.get_json_value('traject')
-        # if j_traject:
-        #     wgs84_crs = 'EPSG:4326'  # WGS 84
-        #     input_crs = 'EPSG:%d' % self.shp_traject.gdf.crs.to_epsg()
-        #
-        #     traject_skeleton_xy = [[point['x'], point['y']] for point in j_traject['skeleton']]
-        #     traject_skeleton_latlng = shp.transform_crs(input_crs, wgs84_crs, traject_skeleton_xy)
-        #
-        #     traject_corners_xy = [[point['x'], point['y']] for point in j_traject['corners']]
-        #     traject_corners_latlng = shp.transform_crs(input_crs, wgs84_crs, traject_corners_xy)
-        #
-        #     traject_geometry_['skeleton'] = {'xy': traject_skeleton_xy, 'latlng': traject_skeleton_latlng}
-        #     traject_geometry_['corners'] = {'xy': traject_corners_xy, 'latlng': traject_corners_latlng}
-
         task_dict = dict()
         for task in sorted(self.tasks):
             task_dict[task.name] = task.context
@@ -206,11 +193,11 @@ class Field(BaseModel):
         with open(self.info_file_path, 'w') as json_file:
             json.dump(self.info.context, json_file, indent=4)
 
-    def update_geofence(self, geometries: Union[list, np.array, gpd.GeoDataFrame] | None = None, epsg: int = 0):
-        self.shp_geofence.update(geometries, GeomType.POLYGON, epsg=epsg)
+    def get_geofence(self):
+        return self.shp_geofence
 
-    def update_traject(self, geometries: Union[list, np.array, gpd.GeoDataFrame] | None = None, epsg: int = 0):
-        self.shp_traject.update(geometries, GeomType.LINESTRING, epsg=epsg)
+    def get_traject(self):
+        return self.shp_traject
 
     def update_task(self, task_name, geometries: Union[list, np.array, gpd.GeoDataFrame] | None = None,
                     task_info: TaskInfo | None = None, epsg: int = 0):

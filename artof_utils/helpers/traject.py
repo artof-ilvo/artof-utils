@@ -41,21 +41,6 @@ class TrajectPoint:
             self.coordinate = [self.coordinate[0] + dx, self.coordinate[1] + dy]
 
 
-class Operation(Enum):
-    REVERSE = 'reverse'
-    FLIP = 'flip'
-    EXTEND = 'extend'
-    SHIFT = 'shift'
-    SHIFT_ALTERNATE = 'shift_alternate'
-    ADD = 'add'
-    REMOVE = 'remove'
-
-    def __repr__(self):
-        return self.value
-
-    def __str__(self):
-        return self.value
-
 
 # Helper Functions
 

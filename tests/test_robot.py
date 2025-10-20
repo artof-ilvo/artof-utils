@@ -45,6 +45,15 @@ class TestRobotManager(TestCase):
         # Assert
         self.assertGreater(no_hitches, 0)
 
+    def test_context(self):
+        # Arrange
+        # - Load settings done as singleton
+        from artof_utils.robot import robot_manager
+
+        # Act
+        print(robot_manager.context())
+
+
     # def test_load_navigation(self):
     #     # Arrange
     #     # - Load settings done as singleton
