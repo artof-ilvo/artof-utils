@@ -1,13 +1,10 @@
 from pydantic import BaseModel, ConfigDict
 from artof_utils.schemas.settings import HitchType, HitchName
-from artof_utils.shapefile import Shapefile, GeomType
 from artof_utils.schemas.implement import Implement
 from typing import Optional, Union
-from os import path, makedirs, removedirs
 import numpy as np
 import geopandas as gpd
-from artof_utils.geojson import GeoJson
-from shutil import rmtree
+from artof_utils.geojson import GeoJson, GeomType
 
 
 class TaskInfo(BaseModel):
@@ -65,7 +62,6 @@ class Task(BaseModel):
         self.geo_data.save()
 
     def update(self, geometries: Union[list, np.array, gpd.GeoDataFrame], epsg: int = 0):
-        # Definieer de metadata die we in de GeoJSON willen zien
         properties = {
             'hitch_type': self.type.value if hasattr(self.type, 'value') else self.type,
             'hitch_name': self.hitch.value if hasattr(self.hitch, 'value') else self.hitch,
@@ -73,12 +69,10 @@ class Task(BaseModel):
         }
 
         if isinstance(geometries, gpd.GeoDataFrame):
-            # Als het al een GDF is, metadata toevoegen
             for k, v in properties.items():
                 geometries[k] = v
             self.geo_data.update(geometries, name=self.name, type="task")
         else:
-            # Bepaal GeomType (bestaande logica)
             if self.type in [HitchType.HITCH, HitchType.CONTINUOUS, HitchType.CARDAN]:
                 geom_type = GeomType.POLYGON
             else:
@@ -92,17 +86,14 @@ class Task(BaseModel):
                 epsg=epsg
             )
 
-    # In Task klasse
     def update_info(self, task_info: TaskInfo):
         self.type = task_info.type
         self.hitch = task_info.hitch
         self.implement = Implement.load(task_info.implement) if task_info.implement else None
         
-        # Haal de huidige geometrie op uit de centrale GDF
         existing_row = self.geo_data.gdf[self.geo_data.gdf['name'] == self.name]
         existing_geom = existing_row.geometry.tolist() if not existing_row.empty else None
         
-        # Update met behoud van geometrie
         self.update(geometries=existing_geom)
 
     @property

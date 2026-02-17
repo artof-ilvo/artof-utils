@@ -7,51 +7,39 @@ from os import path, makedirs
 from pydantic import BaseModel, ConfigDict
 from typing import Any, Union
 import geopandas as gpd
-from artof_utils.geojson import GeoJson  
+from artof_utils.geojson import GeoJson, GeomType
 
 from artof_utils.schemas.task import Task
 from artof_utils.schemas.traject import Traject
 from artof_utils.schemas.task import TaskInfo, HitchType, HitchName
 import artof_utils.paths as paths
 from artof_utils.redis_instance import redis_server
-from artof_utils.shapefile import Shapefile, GeomType
-from artof_utils.helpers import shape as shp
 
 import os
 
 def get_field_names() -> list:
-    # 1. Check of het pad bestaat
     if not path.exists(paths.fields):
-        # In plaats van een harde assert, maken we de map aan of geven een lege lijst
-        # Dit voorkomt crashes tijdens de eerste test-setup
         os.makedirs(paths.fields, exist_ok=True)
         return []
-
-    # 2. Filter alleen mappen (negeer verborgen bestanden en de geojson files zelf)
     field_names_ = [
         f for f in os.listdir(paths.fields) 
         if os.path.isdir(path.join(paths.fields, f)) and not f.startswith('.')
     ]
-
-    # 3. Sorteer alfabetisch voor voorspelbaarheid
     field_names_.sort()
 
     return field_names_
 
 
 def get_current_field_name():
-    # Haal de waarde uit Redis
     field_name = redis_server.get_value('pc.field.name')
     
     available_fields = get_field_names()
 
-    # Als Redis leeg is OF het veld in Redis bestaat niet meer op schijf
     if not field_name or field_name not in available_fields:
         if len(available_fields) > 0:
             field_name = available_fields[0]
             redis_server.set_value('pc.field.name', field_name)
         else:
-            # Geen velden gevonden? Geef een lege string of None terug
             return ""
 
     return field_name
@@ -133,11 +121,9 @@ class Field(BaseModel):
         traject_ = Traject(geo_data)
         tasks_ = []
         if geo_data.gdf is not None and not geo_data.gdf.empty:
-            # Filter op rijen die taken zijn
             task_rows = geo_data.gdf[geo_data.gdf['type'] == 'task']
             
             for _, row in task_rows.iterrows():
-                # Haal metadata direct uit de kolommen van deze rij
                 t_info = TaskInfo(
                     name=row['name'],
                     type=row.get('hitch_type', HitchType.HITCH),
@@ -162,14 +148,11 @@ class Field(BaseModel):
         old_path = self.field_path
         new_path = path.join(paths.fields, new_name)
         
-        # 1. Update de naam direct op self
         self.name = new_name
         
-        # 2. Verplaats de folder
         move(old_path, str(new_path))
         self.field_path = str(new_path)
-        
-        # 3. Update de GeoJson folder- en file-paths intern
+
         self.geo_data.folder_path = str(new_path)
         self.geo_data.file_path = path.join(str(new_path), f"{self.geo_data.filename}.geojson")
         
@@ -238,20 +221,15 @@ class Field(BaseModel):
         task_numbers = set()
 
         for task in self.tasks:
-            # Check of de taaknaam exact begint met 'Task' (hoofdlettergevoelig)
             if task.name.startswith(base_name):
-                # Knip het woord 'Task' eraf en kijk wat er overblijft
                 suffix = task.name[len(base_name):]
                 
-                # Als wat overblijft een getal is (bijv. '1', '2'), voeg dit toe aan de set
                 if suffix.isdigit():
                     task_numbers.add(int(suffix))
 
-        # Bepaal de beschikbare nummers (1 t/m 99) en pak de laagste
         available_numbers = set(range(1, 100)) - task_numbers
         new_task_name = f"{base_name}{min(available_numbers)}"
 
-        # Add new task
         new_task_info = TaskInfo(name=new_task_name, type=HitchType.HITCH, hitch=HitchName.HITCH_FB)
         self.add_task(new_task_info)
 
@@ -264,7 +242,7 @@ class Field(BaseModel):
     def remove_task(self, task_name):
         task = self.get_task(task_name)
         assert task is not None, f"Task {task_name} does not exist."
-        task.delete()  # Remove shapefiles from storage
+        task.delete()  # Remove geojson from storage
         self.tasks.remove(task)  # Remove task from list
 
     def get_task(self, task_name):

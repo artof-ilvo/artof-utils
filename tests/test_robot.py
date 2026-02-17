@@ -79,9 +79,6 @@ class TestRobotManager(TestCase):
         robot_ref_state = redis_server.get_json_value("robot.ref.state")
 
         first_traject_point = np.array(list(robot_manager.field.geo_data.gdf[robot_manager.field.geo_data.gdf['name'] == 'traject'].geometry.iloc[0].coords)[0])
-        # Tijdelijke print om te spieken:
-        print(f"\nROBOT:   {np.array(robot_ref_state['T'][:2])}")
-        print(f"TRAJECT: {first_traject_point}")
         # Assert
         self.assertTrue(np.allclose(np.array(robot_ref_state["T"][:2]), first_traject_point))
 

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 import json
-from typing import Union, Optional
+from typing import Union
 import numpy as np
 import geopandas as gpd
 from artof_utils.geojson import GeoJson
@@ -31,9 +31,7 @@ class Traject(BaseModel):
         if not self.exists:
             return {}
             
-        # Filter de traject-rij uit de centrale GDF
         traject_gdf = self.geo_data.gdf[self.geo_data.gdf['name'] == 'traject']
-        # Gebruik de context methode van de GeoJson handler op deze selectie
         return json.loads(traject_gdf.to_json())
     
     @property
