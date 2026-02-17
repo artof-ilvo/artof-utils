@@ -6,6 +6,7 @@ from typing import Optional, Union
 from os import path, makedirs, removedirs
 import numpy as np
 import geopandas as gpd
+from artof_utils.geojson import GeoJson
 from shutil import rmtree
 
 
@@ -20,14 +21,13 @@ class Task(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     name: str
-    task_path: str
     type: HitchType
     hitch: HitchName
 
     implement: Optional[Implement] = None
-    shp_task: Shapefile
+    geo_data: GeoJson
 
-    def __init__(self, task_path: str, task_info: TaskInfo):
+    def __init__(self, task_info: TaskInfo, geo_data: GeoJson):
         """
         Initializes the Task object.
 
@@ -38,20 +38,13 @@ class Task(BaseModel):
         Returns:
             None
         """
-        # Create the path if it does not exist
-        if not path.exists(task_path):
-            makedirs(task_path, exist_ok=True)
-
-        name_ = task_info.name
-        shp_task_ = Shapefile(task_path)
         implement_ = Implement.load(task_info.implement) if task_info.implement else None
 
-        super().__init__(name=name_,
-                         task_path=task_path,
+        super().__init__(name=task_info.name,
                          type=task_info.type,
                          hitch=task_info.hitch,
                          implement=implement_,
-                         shp_task=shp_task_)
+                         geo_data=geo_data)
 
     def __eq__(self, other):
         return self.name == other.name
@@ -66,29 +59,51 @@ class Task(BaseModel):
         return self.name > other.name
 
     def delete(self):
-        rmtree(self.task_path)
+        self.geo_data.delete(self.name)
 
     def save(self):
-        makedirs(self.task_path, exist_ok=True)
-        self.shp_task.save()
+        self.geo_data.save()
 
     def update(self, geometries: Union[list, np.array, gpd.GeoDataFrame], epsg: int = 0):
+        # Definieer de metadata die we in de GeoJSON willen zien
+        properties = {
+            'hitch_type': self.type.value if hasattr(self.type, 'value') else self.type,
+            'hitch_name': self.hitch.value if hasattr(self.hitch, 'value') else self.hitch,
+            'implement': self.implement.name if self.implement else ''
+        }
+
         if isinstance(geometries, gpd.GeoDataFrame):
-            self.shp_task.update(geometries)
+            # Als het al een GDF is, metadata toevoegen
+            for k, v in properties.items():
+                geometries[k] = v
+            self.geo_data.update(geometries, name=self.name, type="task")
         else:
+            # Bepaal GeomType (bestaande logica)
             if self.type in [HitchType.HITCH, HitchType.CONTINUOUS, HitchType.CARDAN]:
                 geom_type = GeomType.POLYGON
-            elif self.type in [HitchType.DISCRETE, HitchType.INTERMITTENT]:
-                geom_type = GeomType.POINT
             else:
-                geom_type = GeomType.POLYGON
+                geom_type = GeomType.POINT
 
-            self.shp_task.update(geometries, geom_type, epsg=epsg)
+            self.geo_data.update(
+                geometries=geometries, 
+                name=self.name, 
+                type="task", 
+                properties=properties, 
+                epsg=epsg
+            )
 
+    # In Task klasse
     def update_info(self, task_info: TaskInfo):
         self.type = task_info.type
         self.hitch = task_info.hitch
         self.implement = Implement.load(task_info.implement) if task_info.implement else None
+        
+        # Haal de huidige geometrie op uit de centrale GDF
+        existing_row = self.geo_data.gdf[self.geo_data.gdf['name'] == self.name]
+        existing_geom = existing_row.geometry.tolist() if not existing_row.empty else None
+        
+        # Update met behoud van geometrie
+        self.update(geometries=existing_geom)
 
     @property
     def task_info(self):
@@ -104,5 +119,5 @@ class Task(BaseModel):
             'type': self.type.value,
             'hitch': self.hitch.value,
             'implement': self.implement.name if self.implement else '',
-            'geometry': self.shp_task.context
+            'geometry': self.geo_data.context
         }

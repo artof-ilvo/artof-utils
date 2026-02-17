@@ -125,7 +125,10 @@ class RobotManager(metaclass=Singleton):
         """
         # Define the coordinate reference systems
         wgs84_crs = 'EPSG:4326'  # WGS 84
-        utm_crs = 'EPSG:%d' % self.field.shp_geofence.gdf.crs.to_epsg()
+        
+        # Haal de EPSG code uit de centrale GDF ipv shp_geofence
+        epsg_code = self.field.geo_data.gdf.crs.to_epsg() if self.field.geo_data.gdf.crs else 4326
+        utm_crs = 'EPSG:%d' % epsg_code
 
         x, y = shp.transform_crs(wgs84_crs, utm_crs, [lat, lon])
         self.set_position(x, y)
@@ -168,16 +171,25 @@ class RobotManager(metaclass=Singleton):
 
     def set_simulation_mode(self, active=True):
         redis_server.set_value('pc.simulation.active', active)
-        # set position to first point of the traject
-        if len(self.field.shp_traject.gdf):
-            traject_points = robot_manager.field.shp_traject.gdf.geometry[0].coords
+        
+        # Set position to first point of the traject based on new GeoJson structure
+        if active and self.field.traject.exists:
+            # Haal de rij van het traject op uit de GeoDataFrame
+            traject_gdf = self.field.geo_data.gdf[self.field.geo_data.gdf['name'] == 'traject']
+            
+            if not traject_gdf.empty:
+                # Haal de line coordinates op
+                traject_geom = traject_gdf.geometry.iloc[0]
+                if hasattr(traject_geom, 'coords') and len(traject_geom.coords) >= 2:
+                    traject_points = traject_geom.coords
+                    
+                    first_point = Point(traject_points[0])
+                    second_point = Point(traject_points[1])
+                    path_orientation = shp.get_orientation(first_point, second_point)
 
-            first_point = Point(traject_points[0])
-            second_point = Point(traject_points[1])
-            path_orientation = shp.get_orientation(first_point, second_point)
-
-            self.set_position(first_point.x, first_point.y, path_orientation)
-        # navigation state back to normal when simulation mode is turned off
+                    self.set_position(first_point.x, first_point.y, path_orientation)
+                    
+        # Navigation state back to normal when simulation mode is turned off
         if not active:
             self.set_navigation_state('normal')
 
