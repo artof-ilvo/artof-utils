@@ -5,6 +5,7 @@ from typing import Optional, Union
 import numpy as np
 import geopandas as gpd
 from artof_utils.geojson import GeoJson, GeomType
+from artof_utils.helpers.raster import Raster as rstr
 
 
 class TaskInfo(BaseModel):
@@ -61,30 +62,43 @@ class Task(BaseModel):
     def save(self):
         self.geo_data.save()
 
+    # ... (Bestaande imports) ...
+    
     def update(self, geometries: Union[list, np.array, gpd.GeoDataFrame], epsg: int = 0):
+        """
+        Update de taak.
+        """
+        # 1. Metadata voorbereiden
         properties = {
             'hitch_type': self.type.value if hasattr(self.type, 'value') else self.type,
             'hitch_name': self.hitch.value if hasattr(self.hitch, 'value') else self.hitch,
             'implement': self.implement.name if self.implement else ''
         }
 
-        if isinstance(geometries, gpd.GeoDataFrame):
-            for k, v in properties.items():
-                geometries[k] = v
-            self.geo_data.update(geometries, name=self.name, type="task")
+        if self.type in [HitchType.CONTINUOUS, HitchType.HITCH]:
+            type = GeomType.POLYGON
+        # Als het gaat om punt-acties (onkruid detectie/stappen)
         else:
-            if self.type in [HitchType.HITCH, HitchType.CONTINUOUS, HitchType.CARDAN]:
-                geom_type = GeomType.POLYGON
-            else:
-                geom_type = GeomType.POINT
+            type = GeomType.MULTIPOINT
 
-            self.geo_data.update(
-                geometries=geometries, 
-                name=self.name, 
-                type="task", 
-                properties=properties, 
-                epsg=epsg
-            )
+        # 2. Settings ophalen
+        from artof_utils.robot import robot_manager
+        try:
+            cfg = robot_manager.platform_settings.robot
+            resolution = getattr(cfg, 'raster', {}).get('default_resolution', 0.05)
+        except Exception:
+            resolution = 0.05
+
+        # 3. SAVE (Geen conversie meer hier!)
+        # We geven gewoon de ruwe 'geometries' door.
+        self.geo_data.save_as_raster(
+            name=self.name,
+            data=geometries,  # <--- Ruwe data gaat erin
+            resolution=resolution,
+            properties=properties,
+            type=type,
+            epsg=epsg
+        )
 
     def update_info(self, task_info: TaskInfo):
         self.type = task_info.type

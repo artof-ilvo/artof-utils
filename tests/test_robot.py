@@ -69,7 +69,7 @@ class TestRobotManager(TestCase):
         # Arrange
         # - Load settings done as singleton
         from artof_utils.robot import robot_manager
-        from artof_utils.redis_instance import redis_server
+        from artof_utils.redis_manager import redis_server
         # Act
         robot_manager.set_position(0, 0)
         robot_ref_state_zero = redis_server.get_json_value("robot.ref.state")
@@ -86,7 +86,7 @@ class TestRobotManager(TestCase):
         # Arrange
         # - Load settings done as singleton
         from artof_utils.robot import robot_manager
-        from artof_utils.redis_instance import redis_server
+        from artof_utils.redis_manager import redis_server
         # Act
         robot_manager.set_simulation_mode(False)
         # Assert
@@ -96,7 +96,7 @@ class TestRobotManager(TestCase):
         # Arrange
         # - Load settings done as singleton
         from artof_utils.robot import robot_manager
-        from artof_utils.redis_instance import redis_server
+        from artof_utils.redis_manager import redis_server
         # Act
         robot_manager.set_simulation_speed_factor(0.5)
         # Assert

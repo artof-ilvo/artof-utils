@@ -1,6 +1,6 @@
 from pydantic import BaseModel, BeforeValidator
 from typing import Optional, Any, Annotated
-from artof_utils.redis_instance import redis_server
+from artof_utils.redis_manager import redis_server
 
 def parse_float(value: Any) -> float:
     if isinstance(value, str):

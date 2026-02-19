@@ -10,7 +10,7 @@ from artof_utils.helpers import hardware as hw
 from artof_utils.helpers import shape as shp
 from artof_utils.helpers import polygon
 from artof_utils.schemas.settings import AutoMode
-from artof_utils.redis_instance import redis_server
+from artof_utils.redis_manager import redis_server
 from shapely.geometry import Point
 import artof_utils.paths as paths
 

@@ -1,3 +1,4 @@
+import pandas as pd
 from unittest import TestCase
 from artof_utils.schemas.field import Fields, Field
 from artof_utils.schemas.task import TaskInfo, HitchType, HitchName
@@ -32,10 +33,8 @@ class TestFields(TestCase):
     def test_load_discrete(self):
         example = Field('example_discrete')
         task_info = TaskInfo(name='Task1', type='discrete', hitch=HitchName.HITCH_FB, implement='test_TV')
-        geometries = [
-            [[[50.0, 50.0], [50.0, 95.0], [55.0, 95.0], [55.0, 50.0]]],
-            [[[60.0, 50.0], [60.0, 95.0], [65.0, 95.0], [65.0, 50.0]]]
-        ]
+        geometries = [[[3.7740, 50.9800], [3.7740, 50.9805], [3.7742, 50.9805], [3.7742, 50.9800], [3.7740, 50.9800]]]
+        
 
         if example.get_task('Task1') is None:
             example.add_task(task_info, geometries)
@@ -48,6 +47,8 @@ class TestFields(TestCase):
         
         gdf_names = example.geo_data.gdf['name'].values
         self.assertIn('Task1', gdf_names)
+
+        #example.remove_task('Task1')
 
     def test_select_field(self):
         new_field_name = 'test_field_select'
@@ -102,7 +103,7 @@ class TestFields(TestCase):
             [50., 5.], [50., 95.], [55., 95.], [55., 5.]
         ])
         geofence_coords = np.array([
-            [0., 0.], [0., 100.], [100., 100.], [100., 0.]
+            [0., 0.], [0., 100.], [100., 100.], [100., 0.], [0., 0.]
         ])
 
         task1_coords = np.array([[[10.0, 10.0], [10.0, 90.0], [20.0, 90.0], [20.0, 10.0]]])
@@ -115,7 +116,7 @@ class TestFields(TestCase):
         field_new.update_traject(traject_coords)
         field_new.update_geofence(geofence_coords)
         field_new.add_task(TaskInfo(name='task1', type=HitchType.HITCH, hitch=HitchName.HITCH_FB), task1_coords)
-        field_new.add_task(TaskInfo(name='task2', type=HitchType.CONTINUOUS, hitch=HitchName.HITCH_FB), task2_coords)
+        field_new.add_task(TaskInfo(name='task2', type=HitchType.DISCRETE, hitch=HitchName.HITCH_FB), task2_coords)
         field_new.add_new_task()
 
         # Assert
@@ -129,15 +130,22 @@ class TestFields(TestCase):
         for task_name in ['task1', 'task2']:
             task = field_new.get_task(task_name)
             self.assertIsNotNone(task)
-            self.assertIn(task.name, names_in_gdf)
+            # Controleer of de rij in de GDF de juiste metadata heeft
+            task_row = field_new.geo_data.gdf[field_new.geo_data.gdf['name'] == task.name].iloc[0]
             
-            geom_types = field_new.geo_data.gdf[field_new.geo_data.gdf['name'] == task.name].geom_type.values
-            self.assertTrue(all('Polygon' in t for t in geom_types))
+            # De 'type' kolom moet nu 'raster' zijn
+            self.assertEqual(task_row['type'], 'raster')
+            
+            # De geometrie moet None zijn
+            self.assertTrue(pd.isna(task_row['geometry']) or task_row['geometry'] is None)
+            
+            # Er moet een verwijzing zijn naar het .tif bestand
+            self.assertTrue(task_row['raster_source'].endswith('.tif'))
 
         task_name = [task.name for task in field_new.tasks]
         self.assertEqual(set(task_name), {'task1', 'task2', 'Task1'})
 
-        fields.delete_field(field_new.name)
+        #fields.delete_field(field_new.name)
 
     def test_rename_field(self):
         new_name = 'example_new_name'

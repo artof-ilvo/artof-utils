@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 from artof_utils.schemas.settings import Hitch
-from artof_utils.redis_instance import redis_server
+from artof_utils.redis_manager import redis_server
 from copy import deepcopy
 
 

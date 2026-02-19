@@ -13,7 +13,7 @@ from artof_utils.schemas.task import Task
 from artof_utils.schemas.traject import Traject
 from artof_utils.schemas.task import TaskInfo, HitchType, HitchName
 import artof_utils.paths as paths
-from artof_utils.redis_instance import redis_server
+from artof_utils.redis_manager import redis_server
 
 import os
 
@@ -250,3 +250,5 @@ class Field(BaseModel):
             if task.name == task_name:
                 return task
         return None
+    
+    

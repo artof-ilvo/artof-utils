@@ -1,4 +1,4 @@
-from artof_utils.redis import RedisServer
+from artof_utils.redis.server import RedisServer
 import artof_utils.paths as paths
 import ipaddress
 from os import getenv

@@ -6,8 +6,10 @@ import os
 import json
 from os import path, makedirs
 from enum import Enum
-from shapely.geometry import shape, Point, Polygon, LineString
+from shapely.geometry import shape, Point, Polygon, LineString, MultiPoint
+from shapely.ops import unary_union
 from artof_utils.helpers import array
+from artof_utils.helpers.raster import Raster as rstr
 
 class GeomType(str, Enum):
     POINT = 'Point'
@@ -26,78 +28,120 @@ class GeoJson:
 
     def load(self):
         """loads the file if it exists or else a empty GeoDataFrame."""
+        default_columns = ['name', 'type', 'geometry', 'raster_source']
+        
         if path.exists(self.file_path):
             try:
                 self.gdf = gpd.read_file(self.file_path)
+                # Zorg dat 'name' er altijd is, zelfs als het bestand corrupt was
+                if 'name' not in self.gdf.columns:
+                    self.gdf['name'] = None
             except Exception as e:
                 print(f"Fout bij laden van {self.file_path}: {e}")
-                self.gdf = gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
+                self.gdf = gpd.GeoDataFrame(columns=default_columns, crs="EPSG:4326")
         else:
-            self.gdf = gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
+            # DIT IS DE FIX: Voeg columns= toe
+            self.gdf = gpd.GeoDataFrame(columns=default_columns, crs="EPSG:4326")
+
+    @staticmethod
+    def to_shapely(data, type: GeomType) -> list:
+        geometries = data
+        if geometries is None:
+            return [None]
+        
+        if isinstance(geometries, gpd.GeoDataFrame):
+            return geometries.geometry.tolist()
+        
+        if hasattr(geometries, 'geom_type'):
+            return [geometries]
+
+        geoms = []
+        if isinstance(geometries, dict):
+            geoms = [shape(geometries)]
+        elif isinstance(geometries, (list, np.ndarray)):
+            raw_list = geometries.tolist() if isinstance(geometries, np.ndarray) else geometries
+            if not raw_list:
+                return [None]
+            
+            depth = array.get_depth(raw_list)
+
+            # --- EXPLICIETE CHECK OP TYPE ---
+            if type == GeomType.POLYGON:
+                # Bepaal ringen op basis van diepte
+                if depth == 2:
+                    # [[x,y], [x,y]...] -> Enkele ring
+                    rings = [raw_list]
+                elif depth == 3:
+                    # [[[x,y]...]] -> Lijst van ringen
+                    rings = raw_list
+                elif depth == 4:
+                    # [[[[x,y]...]]] -> Lijst van polygonen, pak de eerste
+                    rings = raw_list[0]
+                else:
+                    rings = []
+
+                for ring in rings:
+                    # Gebruik GEEN .squeeze() op de hele array, dat is gevaarlijk
+                    ring_arr = np.array(ring)
+                    # Forceer 2D: (Aantal punten, 2 coördinaten)
+                    if ring_arr.ndim == 2 and ring_arr.shape[1] == 2 and len(ring_arr) >= 3:
+                        if not np.allclose(ring_arr[0], ring_arr[-1]):
+                            ring_arr = np.vstack((ring_arr, ring_arr[0]))
+                        geoms.append(Polygon(ring_arr))
+                
+                # Als het gelukt is om polygonen te maken, geef ze terug
+                if geoms: return geoms
+
+            # --- OVERIGE TYPES & FALLBACKS ---
+            if type == GeomType.MULTIPOINT:
+                    pts = np.array(raw_list)
+                    # Squeeze alle dimensies weg die maar grootte 1 hebben
+                    # We willen eindigen met (N, 2)
+                    pts_cleaned = pts.squeeze()
+                    
+                    # Als het resultaat na squeeze 1D is (1 punt), verpak het weer
+                    if pts_cleaned.ndim == 1:
+                        pts_cleaned = pts_cleaned.reshape(1, 2)
+                    
+                    # Als het resultaat na squeeze 3D is (omdat squeeze niet alles pakte),
+                    # dwing het dan naar 2D
+                    if pts_cleaned.ndim > 2:
+                        pts_cleaned = pts_cleaned.reshape(-1, 2)
+
+                    geoms = [MultiPoint(pts_cleaned.tolist())]
+            elif type == GeomType.LINESTRING or (type is None and depth == 2):
+                geoms = [LineString(raw_list)]
+            elif depth == 1:
+                geoms = [Point(raw_list)]
+            elif depth >= 3:
+                # Automatische detectie voor Polygonen als type niet gezet was
+                rings = raw_list[0] if depth == 4 else raw_list
+                for ring in rings:
+                    ring_arr = np.array(ring)
+                    if ring_arr.ndim == 2 and len(ring_arr) >= 3:
+                        if not np.allclose(ring_arr[0], ring_arr[-1]):
+                            ring_arr = np.vstack((ring_arr, ring_arr[0]))
+                        geoms.append(Polygon(ring_arr))
+        
+        return geoms if geoms else [None]
+
 
     def update(self, geometries: Union[list, np.ndarray, gpd.GeoDataFrame, None, dict], 
                name: str, 
-               type: Any = "vector", 
+               type: GeomType, 
                properties: Optional[dict] = None, 
                epsg: int = 0):
-        
-        if isinstance(geometries, gpd.GeoDataFrame):
-            new_gdf = geometries
-        else:
-            geoms = []
+      
+        shapely_geom = self.to_shapely(geometries, type)
 
-            if isinstance(geometries, dict):
-                geoms = [shape(geometries)]
-            elif isinstance(geometries, (list, np.ndarray)):
-                
-                raw_list = geometries.tolist() if isinstance(geometries, np.ndarray) else geometries
-                
-                if not raw_list:
-                    geoms = [None]
-                elif hasattr(raw_list[0], 'geom_type'):
-                    geoms = raw_list
-                else:
-                    depth = array.get_depth(geometries)
+        input_crs = f"EPSG:{epsg}" if epsg else "EPSG:4326"
+        new_gdf = gpd.GeoDataFrame(
+            {'name': [name] * len(shapely_geom), 'type': [str(type)] * len(shapely_geom)}, 
+            geometry=shapely_geom, 
+            crs=input_crs
+        )
 
-                    if depth == 1:
-                        geoms = [Point(raw_list)]
-                    elif depth == 2:
-                        if len(raw_list) == 1:
-                            geoms = [Point(raw_list[0])]
-                        else:
-                            geoms = [LineString(raw_list)]
-                    elif depth >= 3:
-                        if depth == 3:
-                            rings = raw_list
-                        elif depth == 4:
-                            rings = raw_list[0]
-                        else:
-                            rings = []
-
-                        for ring in rings:
-                            ring_arr = np.array(ring)
-                            if len(ring_arr) >= 3: 
-                                if not np.allclose(ring_arr[0], ring_arr[-1]):
-                                    ring_arr = np.vstack((ring_arr, ring_arr[0]))
-                                geoms.append(Polygon(ring_arr))
-                            elif len(ring_arr) == 2:
-                                geoms.append(LineString(ring_arr))
-                            elif len(ring_arr) == 1:
-                                geoms.append(Point(ring_arr[0]))
-            
-            elif hasattr(geometries, 'geom_type'):
-                geoms = [geometries]
-            else:
-                geoms = [None]
-
-            input_crs = f"EPSG:{epsg}" if epsg else "EPSG:4326"
-            new_gdf = gpd.GeoDataFrame(
-                {'name': [name] * len(geoms), 'type': [str(type)] * len(geoms)}, 
-                geometry=geoms, 
-                crs=input_crs
-            )
-
-        if properties: # metadata for tasks
+        if properties:
             for key, value in properties.items():
                 new_gdf[key] = value
 
@@ -105,13 +149,11 @@ class GeoJson:
             new_gdf = new_gdf.to_crs(epsg=4326)
 
         if self.gdf is not None and not self.gdf.empty:
+            # Zorg dat kolommen matchen
             for col in new_gdf.columns:
-                if col not in self.gdf.columns:
-                    self.gdf[col] = None
-                    
+                if col not in self.gdf.columns: self.gdf[col] = None
             for col in self.gdf.columns:
-                if col not in new_gdf.columns:
-                    new_gdf[col] = None
+                if col not in new_gdf.columns: new_gdf[col] = None
 
             self.gdf = self.gdf[self.gdf['name'] != name]
             self.gdf = pd.concat([self.gdf, new_gdf], ignore_index=True)
@@ -142,7 +184,7 @@ class GeoJson:
             print(f"Item '{name}' niet gevonden in GeoJSON.")
             return
 
-        potential_raster = path.join(self.raster_path, f"{name}.tif")
+        potential_raster = path.join(self.folder_path, "rasters", f"{name}.tif")
         if path.exists(potential_raster):
             try:
                 os.remove(potential_raster)
@@ -174,3 +216,74 @@ class GeoJson:
         if self.gdf is not None and not self.gdf.empty:
             return self.gdf.geometry.iloc[0] if len(self.gdf) == 1 else self.gdf.geometry.tolist()
         return None
+    
+    def update_to_raster_ref(self, name: str, raster_path: str):
+        """
+        Vervangt de vector-geometrie van een taak door een referentie naar een rasterbestand.
+        De geometrie wordt 'None' omdat de GeoTIFF zelf zijn locatie bevat.
+        """
+        if self.gdf is None or 'name' not in self.gdf.columns:
+             self.load()
+
+        if not self.gdf.empty and name in self.gdf['name'].values:
+            idx = self.gdf.index[self.gdf['name'] == name].tolist()[0]
+            self.gdf.at[idx, 'geometry'] = None
+            self.gdf.at[idx, 'type'] = 'raster'
+            self.gdf.at[idx, 'raster_source'] = raster_path
+        else:
+            # Maak een nieuwe rij als hij nog niet bestaat
+            new_row = gpd.GeoDataFrame({
+                'name': [name],
+                'type': ['raster'],
+                'raster_source': [raster_path],
+                'geometry': [None]
+            }, crs="EPSG:4326")
+            self.gdf = pd.concat([self.gdf, new_row], ignore_index=True)
+            
+        self.save()
+
+    def save_as_raster(self, name: str, data: Any, resolution: float, properties: dict = None, epsg: int = 0, type: GeomType = None):
+        # 1. Krijg de lijst met geometries
+        geom_list = self.to_shapely(data, type)
+        # Filter None waarden en voeg samen tot 1 object voor de rasterizer
+        clean_geoms = [g for g in geom_list if g is not None]
+        
+        if not clean_geoms:
+            print(f"[GeoJson] Waarschuwing: Geen geldige geometrie voor {name}")
+            return
+
+        shapely_geom = unary_union(clean_geoms)
+
+        # 2. Bepaal de bounds van het volledige veld (geofence)
+        field_bounds = None
+        if self.gdf is not None and not self.gdf.empty:
+            geofence_row = self.gdf[self.gdf['name'] == 'geofence']
+            if not geofence_row.empty:
+                field_bounds = geofence_row.geometry.iloc[0].bounds
+        
+        if field_bounds is None:
+            print(f"[GeoJson] Geen geofence gevonden, we gebruiken de bounds van de taak zelf.")
+            field_bounds = shapely_geom.bounds
+
+        # 3. Paden en CRS (zoals voorheen)
+        raster_rel_path = f"rasters/{name}.tif"
+        full_path = os.path.join(self.folder_path, raster_rel_path)
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        input_crs = f"EPSG:{epsg}" if epsg else "EPSG:4326"
+
+        # 4. Teken het raster op basis van VELD-bounds
+        rstr.create_geotiff(
+           geometry=shapely_geom,
+           bounds=field_bounds, # <--- Belangrijk: De veld-omtrek
+           resolution=resolution,
+           output_path=full_path,
+           crs=input_crs
+        )
+
+        # 5. Update referentie en metadata
+        self.update_to_raster_ref(name, raster_rel_path)
+        if properties:
+             idx = self.gdf.index[self.gdf['name'] == name].tolist()[0]
+             for key, value in properties.items():
+                 self.gdf.at[idx, key] = value
+             self.save()

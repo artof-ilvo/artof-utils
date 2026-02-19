@@ -3,7 +3,7 @@ import json
 from typing import Union
 import numpy as np
 import geopandas as gpd
-from artof_utils.geojson import GeoJson
+from artof_utils.geojson import GeoJson, GeomType
 
 class Traject(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -18,7 +18,7 @@ class Traject(BaseModel):
         self.geo_data.update(
             geometries, 
             name="traject", 
-            type="traject", 
+            type=GeomType.LINESTRING, 
             epsg=epsg
         )
 
