@@ -1,5 +1,5 @@
 from artof_utils.schemas.settings import HitchType, HitchName
-from artof_utils.implement import implement_manager
+from artof_utils.implement_manager import implement_manager
 
 
 def get_hitch_choices():

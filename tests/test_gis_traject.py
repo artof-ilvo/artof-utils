@@ -2,7 +2,7 @@ from unittest import TestCase
 import numpy as np
 import pandas as pd
 from shapely.geometry import Point
-from artof_utils.helpers import traject
+from artof_utils.gis import traject
 
 
 class TestHelpersTraject(TestCase):

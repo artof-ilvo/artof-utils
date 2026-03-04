@@ -1,5 +1,5 @@
 from unittest import TestCase
-import artof_utils.helpers.task as task
+import artof_utils.gis.task as task
 
 
 class TestState(TestCase):

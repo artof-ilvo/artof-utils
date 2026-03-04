@@ -1,4 +1,4 @@
-from artof_utils.helpers import polygon
+from artof_utils.gis import polygon
 from tests.visual_support import plot_on_top
 
 

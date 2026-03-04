@@ -2,64 +2,55 @@ import time
 
 from artof_utils.singleton import Singleton
 from artof_utils.schemas.settings import load_settings
-from artof_utils.schemas.field import Field, get_current_field_name
+from artof_utils.field_manager import FieldManager  
 from artof_utils.schemas.hitches import Hitches
 from artof_utils.schemas.navigation import Navigation
 from artof_utils.schemas.state import State
-from artof_utils.helpers import hardware as hw
-from artof_utils.helpers import shape as shp
-from artof_utils.helpers import polygon
+from artof_utils.gis import hardware as hw
+from artof_utils.gis import shape as shp
+from artof_utils.gis import polygon
 from artof_utils.schemas.settings import AutoMode
-from artof_utils.redis_manager import redis_server
+from artof_utils.redis_manager import redis_manager
 from shapely.geometry import Point
 import artof_utils.paths as paths
 
+def get_current_field_name():
+    name = redis_manager.get_value('pc.field.name')
+    print("Current field name: %s" % name)
+    return name if name else ''
 
-# Robot Manager
+
 class RobotManager(metaclass=Singleton):
     """
     A singleton class responsible for managing the robot's settings, field information,
-    navigation, and interaction with external resources like redis_server. This ensures a single
-    instance can manage and maintain the state and behavior of the robotic platform.
+    navigation, and interaction with external resources like redis_manager.
     """
 
     def __init__(self):
-        """
-        Initializes the RobotManager instance by loading platform settings and field
-        information, setting up hitches and navigation objects, and preparing state
-        and voltage variables.
-        """
         self.platform_settings = None
         self.field = None
 
         if paths.loaded:
-            # Load settings and field from configuration files
             self.load_settings()
             self.load_field()
 
-        # Initialize Hitches and Navigation objects
         self.hitches = Hitches()
         self.navigation = Navigation()
 
-        # Configure platform hitches based on loaded settings
         if self.platform_settings:
             self.hitches.add_hitches(self.platform_settings.hitches)
 
-        # Retrieve robot state and voltage information from Redis
-        all_keys = redis_server.variables.keys()
+        all_keys = redis_manager.variables.keys()
         self.robot_state_vars = [key for key in all_keys if key.startswith('plc.monitor.state.')]
 
     def load_settings(self):
-        """Loads platform settings from a JSON file specified in the paths configuration."""
         print("Load settings")
         self.platform_settings = load_settings()
 
-    def load_field(self):
-        """Loads the current field configuration based on the field name."""
-        print("Load Field")
-        self.field = Field(get_current_field_name())
+    def load_field(self, gdf=None):
+        print("Load Field ")
+        self.field = FieldManager(get_current_field_name(), gdf)
 
-    # Getter and setters
     @staticmethod
     def get_navigation_modes():
         if robot_manager.platform_settings is None:
@@ -68,13 +59,6 @@ class RobotManager(metaclass=Singleton):
             return [(mode.id, mode.name) for mode in robot_manager.platform_settings.nav_modes]
 
     def get_navigation_states(self):
-        """
-        Retrieves a list of available navigation states for the robot, including
-        any custom auto modes defined in the platform settings.
-
-        Returns:
-            list: A list of navigation state names.
-        """
         if self.platform_settings is None:
             auto_modes_settings = [AutoMode.model_validate({'name': 'normal', 'id': 0}), AutoMode.model_validate({'name': 'auto', 'id': 1})]
         else:
@@ -83,7 +67,7 @@ class RobotManager(metaclass=Singleton):
         return state_names
 
     def get_navigation_state(self):
-        state_vars = redis_server.get_n_values(self.robot_state_vars)
+        state_vars = redis_manager.get_n_values(self.robot_state_vars)
         active_states = [k.replace('plc.monitor.state.', '') for k, v in state_vars.items() if v]
         current_state = active_states[0] if len(active_states) > 0 else robot_manager.get_navigation_states()[0]
 
@@ -93,41 +77,23 @@ class RobotManager(metaclass=Singleton):
         return current_state
 
     def set_navigation_state(self, navigation_state):
-        """
-        Sets the robot's navigation state based on the provided state name.
-
-        Parameters:
-            navigation_state (str): The name of the navigation state to set.
-        """
         sim_mode = self.get_simulation_mode()
         if sim_mode:
-            redis_server.set_value('pc.simulation.auto', navigation_state != 'normal')
+            redis_manager.set_value('pc.simulation.auto', navigation_state != 'normal')
         else:
             if navigation_state in self.get_navigation_states():
-                redis_server.set_value('plc.monitor.state.' + navigation_state, True)
+                redis_manager.set_value('plc.monitor.state.' + navigation_state, True)
 
-        # Control operations
         control_name = 'plc.control.state.' + navigation_state
-        if navigation_state in self.get_navigation_states() and control_name in redis_server.variables.keys():
-            # Pulse the state variable to trigger state change
-            redis_server.set_value(control_name, True)
+        if navigation_state in self.get_navigation_states() and control_name in redis_manager.variables.keys():
+            redis_manager.set_value(control_name, True)
             time.sleep(0.5)
-            redis_server.set_value(control_name, False)
+            redis_manager.set_value(control_name, False)
             print("Pulsed %s" % control_name)
 
     def set_position_latlon(self, lat, lon):
-        """
-        Set the position of the robot based on latitude and longitude coordinates.
-
-        :param lat: latitude coordinate
-        :param lon: longitude coordinate
-        :return: None
-        """
-        # Define the coordinate reference systems
-        wgs84_crs = 'EPSG:4326'  # WGS 84
-        
-        # Haal de EPSG code uit de centrale GDF ipv shp_geofence
-        epsg_code = self.field.geo_data.gdf.crs.to_epsg() if self.field.geo_data.gdf.crs else 4326
+        wgs84_crs = 'EPSG:4326'  
+        epsg_code = self.field.gdf.crs.to_epsg() if (not self.field.gdf.empty and self.field.gdf.crs) else 4326
         utm_crs = 'EPSG:%d' % epsg_code
 
         x, y = shp.transform_crs(wgs84_crs, utm_crs, [lat, lon])
@@ -135,53 +101,43 @@ class RobotManager(metaclass=Singleton):
 
     @staticmethod
     def set_position(x, y, yaw=None):
-        robot_ref_state = redis_server.get_json_value("robot.ref.state")
+        robot_ref_state = redis_manager.get_json_value("robot.ref.state")
         if robot_ref_state is None:
-            # skip if there is no robot_ref_state
             return
         robot_ref_state["T"] = [x, y, 0.0]
         if yaw is not None:
             robot_ref_state["R"] = [0.0, 0.0, yaw]
-        redis_server.set_json_value("robot.ref.state", robot_ref_state)
+        redis_manager.set_json_value("robot.ref.state", robot_ref_state)
 
     @staticmethod
     def set_velocity(vx, omega):
-        redis_server.set_value('plc.control.navigation.velocity.longitudinal', vx)
-        redis_server.set_value('plc.control.navigation.velocity.angular', omega)
+        redis_manager.set_value('plc.control.navigation.velocity.longitudinal', vx)
+        redis_manager.set_value('plc.control.navigation.velocity.angular', omega)
 
     @staticmethod
     def get_velocity():
-        vx = redis_server.get_value('plc.control.navigation.velocity.longitudinal')
-        omega = redis_server.get_value('plc.control.navigation.velocity.angular')
-
+        vx = redis_manager.get_value('plc.control.navigation.velocity.longitudinal')
+        omega = redis_manager.get_value('plc.control.navigation.velocity.angular')
         return vx, omega
 
     @staticmethod
     def get_simulation_mode():
-        """
-        Get the current simulation mode from the Redis server.
-
-        :return: The current simulation mode (str)
-        """
-        return redis_server.get_value('pc.simulation.active')
+        return redis_manager.get_value('pc.simulation.active')
 
     @staticmethod
     def get_simulation_auto():
-        return redis_server.get_value('pc.simulation.auto')
+        return redis_manager.get_value('pc.simulation.auto')
 
     def set_simulation_mode(self, active=True):
-        redis_server.set_value('pc.simulation.active', active)
+        redis_manager.set_value('pc.simulation.active', active)
         
-        # Set position to first point of the traject based on new GeoJson structure
-        if active and self.field.traject.exists:
-            # Haal de rij van het traject op uit de GeoDataFrame
-            traject_gdf = self.field.geo_data.gdf[self.field.geo_data.gdf['name'] == 'traject']
+        if active and self.field.traject_manager.exists:
+            traject_gdf = self.field.gdf[self.field.gdf['name'] == 'traject']
             
             if not traject_gdf.empty:
-                # Haal de line coordinates op
                 traject_geom = traject_gdf.geometry.iloc[0]
                 if hasattr(traject_geom, 'coords') and len(traject_geom.coords) >= 2:
-                    traject_points = traject_geom.coords
+                    traject_points = list(traject_geom.coords)
                     
                     first_point = Point(traject_points[0])
                     second_point = Point(traject_points[1])
@@ -189,54 +145,46 @@ class RobotManager(metaclass=Singleton):
 
                     self.set_position(first_point.x, first_point.y, path_orientation)
                     
-        # Navigation state back to normal when simulation mode is turned off
         if not active:
             self.set_navigation_state('normal')
 
     @staticmethod
     def set_simulation_speed_factor(factor):
-        redis_server.set_value('pc.simulation.factor', factor)
+        redis_manager.set_value('pc.simulation.factor', factor)
 
     @staticmethod
     def get_simulation_speed_factor():
-        return redis_server.get_value('pc.simulation.factor')
+        return redis_manager.get_value('pc.simulation.factor')
 
     @staticmethod
     def get_programming_mode():
-        return redis_server.get_value('plc.monitor.substate.programming')
+        return redis_manager.get_value('plc.monitor.substate.programming')
 
     @staticmethod
     def acknowledge_notification():
-        redis_server.set_value('pc.execution.notification', '-')
+        redis_manager.set_value('pc.execution.notification', '-')
 
     @staticmethod
     def update_field():
-        redis_server.set_value('pc.field.updated', True)
+        redis_manager.set_value('pc.field.updated', True)
 
     def status(self):
-        return redis_server.get_json_value("robot.status")
+        return redis_manager.get_json_value("robot.status")
 
     def context(self):
-        redis_data = redis_server.get_n_json_value(["robot.center.state", "robot.ref.state", "robot.head.state",
+        redis_data = redis_manager.get_n_json_value(["robot.center.state", "robot.ref.state", "robot.head.state",
                                                     "robot.contour", "hitch.states", "implement.states",
                                                     "navigation.controller.info"])
         r = dict()
-
         r['robot'] = {'contours': redis_data['robot.contour'],
                       'center': redis_data['robot.center.state']['point'],
                       'ref': redis_data['robot.ref.state']['point'],
                       'head': redis_data['robot.head.state']['point'],
                       'orientation': redis_data['navigation.controller.info']['heading']}
-        # Add each hitch
         r['hitches'] = redis_data['hitch.states']
-
-        # Add implements
         r['implements'] = redis_data['implement.states']
-
-        # Add controller info
         r['controller_info'] = redis_data['navigation.controller.info']
 
         return r
-
 
 robot_manager = RobotManager()

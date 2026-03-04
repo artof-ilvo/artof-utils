@@ -1,5 +1,5 @@
-from artof_utils.helpers import array
-from artof_utils.helpers import shape as shp
+from artof_utils.gis.utils import array
+from artof_utils.gis import shape as shp
 from shapely.geometry import Point
 from copy import deepcopy
 from typing import Union

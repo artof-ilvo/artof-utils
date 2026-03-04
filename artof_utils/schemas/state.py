@@ -1,4 +1,4 @@
-from artof_utils.schemas.affine import Affine
+from artof_utils.gis.utils.affine import Affine
 from pydantic import BaseModel, ConfigDict, model_serializer
 import numpy as np
 from typing import Any, Dict

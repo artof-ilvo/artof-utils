@@ -2,7 +2,7 @@ import numpy as np
 from pyproj import Transformer
 from shapely.geometry import Point
 import math
-from artof_utils.helpers import array
+from artof_utils.gis.utils import array
 
 
 # CRS

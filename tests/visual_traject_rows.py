@@ -1,4 +1,4 @@
-from artof_utils.helpers import traject
+from artof_utils.gis import traject
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt

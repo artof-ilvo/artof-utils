@@ -1,6 +1,6 @@
 from unittest import TestCase
 import numpy as np
-from artof_utils.helpers.array import get_depth
+from artof_utils.gis.utils.array import get_depth
 
 
 class TestHelpersArray(TestCase):

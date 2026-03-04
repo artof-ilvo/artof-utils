@@ -1,7 +1,7 @@
 from enum import Enum
 import numpy as np
 from shapely.geometry import Polygon
-from artof_utils.helpers import array
+from artof_utils.gis.utils import array
 
 
 class Operation(Enum):

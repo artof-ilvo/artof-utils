@@ -23,7 +23,7 @@ def __is_valid_ip(ip_str):
         return False
 
 
-redis_server = RedisServer(ilvo_path=paths.ilvo_path,
+redis_manager = RedisServer(ilvo_path=paths.ilvo_path,
                            host=getenv('REDIS_HOST') if getenv('REDIS_HOST') else '127.0.0.1',
                            port=int(getenv('REDIS_PORT'))
                            if getenv('REDIS_PORT') and __is_numerical(getenv('REDIS_PORT'))

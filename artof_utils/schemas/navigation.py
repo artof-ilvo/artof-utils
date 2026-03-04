@@ -1,6 +1,6 @@
 from pydantic import BaseModel, BeforeValidator
 from typing import Optional, Any, Annotated
-from artof_utils.redis_manager import redis_server
+from artof_utils.redis_manager import redis_manager
 
 def parse_float(value: Any) -> float:
     if isinstance(value, str):
@@ -46,7 +46,7 @@ class Navigation(BaseModel):
             "pc.pid_rough.i",
             "pc.pid_rough.d"
         ]
-        d = redis_server.get_n_values(redis_variables_)
+        d = redis_manager.get_n_values(redis_variables_)
 
         super().__init__(navigation_mode=d['pc.navigation.mode'],
                          non_operational_velocity=d['pc.navigation.non_operational_velocity'],
@@ -65,7 +65,7 @@ class Navigation(BaseModel):
                          redis_variables=redis_variables_)
 
     def update(self):
-        d = redis_server.get_n_values(self.redis_variables)
+        d = redis_manager.get_n_values(self.redis_variables)
         self.navigation_mode = d['pc.navigation.mode']
         self.non_operational_velocity = d['pc.navigation.non_operational_velocity']
         self.operational_velocity = d['pc.navigation.operational_velocity']
@@ -103,7 +103,7 @@ class Navigation(BaseModel):
             'pc.pid_rough.d': kd_rough,
             'pc.purepursuit.carrot_distance': carrot_distance
         }
-        redis_server.set_n_values(d)
+        redis_manager.set_n_values(d)
 
     @property
     def context(self):

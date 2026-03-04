@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 from artof_utils.schemas.settings import Hitch
-from artof_utils.redis_manager import redis_server
+from artof_utils.redis_manager import redis_manager
 from copy import deepcopy
 
 
@@ -30,7 +30,7 @@ class Hitches(BaseModel):
         self.update()
 
     def update(self):
-        d = redis_server.get_n_values(self.redis_variables)
+        d = redis_manager.get_n_values(self.redis_variables)
 
         # Update hitches
         for hitch in self.hitches:
@@ -51,7 +51,7 @@ class Hitches(BaseModel):
         for name, setpoint in hitch_setpoints.items():
             hitch_name = 'plc.control.hitch_' + name.lower()
             d[hitch_name + '.setpoint'] = setpoint
-        redis_server.set_n_values(d)
+        redis_manager.set_n_values(d)
 
     @property
     def context(self):

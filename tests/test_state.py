@@ -3,7 +3,7 @@ import json
 import numpy as np
 import math
 from os import path
-from artof_utils.schemas.affine import Affine
+from artof_utils.gis.utils.affine import Affine
 
 
 def verify_ry(R):

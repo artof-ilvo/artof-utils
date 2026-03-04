@@ -1,4 +1,4 @@
-from artof_utils.helpers import traject
+from artof_utils.gis import traject
 from tests.visual_support import plot_on_top
 import pandas as pd
 

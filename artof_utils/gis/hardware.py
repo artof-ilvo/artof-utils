@@ -1,6 +1,3 @@
-
-
-# Gps
 def parse_gps_fix_number(gps_fix_number):
     """
     Parse GPS fix number

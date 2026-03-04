@@ -7,7 +7,7 @@ class TestImplementManager(TestCase):
     def test_load_implements(self):
         # Arrange
         # - Load settings done as singleton
-        from artof_utils.implement import implement_manager
+        from artof_utils.implement_manager import implement_manager
 
         # Act
         implements = implement_manager.implements
@@ -18,7 +18,7 @@ class TestImplementManager(TestCase):
     def test_context(self):
         # Arrange
         # - Load settings done as singleton
-        from artof_utils.implement import implement_manager
+        from artof_utils.implement_manager import implement_manager
 
         # Act
         context = implement_manager.implements[0].context
@@ -29,7 +29,7 @@ class TestImplementManager(TestCase):
         self.assertIsNotNone(context)
 
     def test_get_implement(self):
-        from artof_utils.implement import implement_manager
+        from artof_utils.implement_manager import implement_manager
         implement = implement_manager.get_implement('new')
         context = implement.context
 
