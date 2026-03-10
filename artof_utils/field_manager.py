@@ -36,8 +36,9 @@ class FieldManager:
             for _, row in task_rows.iterrows():
                 t_info = Task(
                     name=row.get('name', 'Unknown'),
-                    type=row.get('hitch_type', HitchType.HITCH),
-                    hitch=row.get('hitch_name', HitchName.HITCH_FB),
+                    type=row.get('type', 'task'),
+                    hitch_type=row.get('hitch_type', HitchType.HITCH),
+                    hitch_name=row.get('hitch_name', HitchName.HITCH_FB),
                     implement=row.get('implement', '')
                 )
                 self.task_managers.append(TaskManager(task_info=t_info, field_gdf=self.gdf))
@@ -97,7 +98,7 @@ class FieldManager:
         available_numbers = set(range(1, 100)) - task_numbers
         new_task_name = f"{base_name}{min(available_numbers)}"
 
-        new_task_info = Task(name=new_task_name, type=HitchType.HITCH, hitch=HitchName.HITCH_FB)
+        new_task_info = Task(name=new_task_name, type="task", hitch_type=HitchType.HITCH, hitch_name=HitchName.HITCH_FB)
         return self.add_task(new_task_info)
 
     def add_task(self, task_info: Task, geometry: Union[Polygon, MultiPoint] = None) -> TaskManager:
@@ -108,7 +109,7 @@ class FieldManager:
         self._sync_gdfs()
         return tm
 
-    def update_task(self, task_name: str, geometry: Union[Polygon, MultiPoint] = None, task_info: Task = None) -> gpd.GeoDataFrame:
+    def update_task(self, task_name: str, geometry: Union[Polygon, MultiPoint] = None, task_info: Task = None, raster_source: str = None) -> gpd.GeoDataFrame:
         tm = self.get_task(task_name)
         assert tm is not None, f"Task {task_name} does not exist."
 
@@ -116,7 +117,9 @@ class FieldManager:
             self.gdf = tm.update_info(task_info)
         if geometry is not None:
             self.gdf = tm.update(geometry)
-            
+        if raster_source is not None:
+            self.gdf = tm.update_info(Task(name=tm.name, raster_source=raster_source))
+
         self._sync_gdfs()
         return self.gdf
 
@@ -170,7 +173,7 @@ class FieldManager:
         for t_name in formatted_tasks:
             t_geom = formatted_tasks[t_name].get('geometry')
             formatted_tasks[t_name]['geometry'] = wrap(t_geom)
-
+            
         data = {
             'name': ctx['name'],
             'geofence': wrap(ctx['geofence_geometry']),

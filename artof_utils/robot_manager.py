@@ -93,10 +93,12 @@ class RobotManager(metaclass=Singleton):
 
     def set_position_latlon(self, lat, lon):
         wgs84_crs = 'EPSG:4326'  
-        epsg_code = self.field.gdf.crs.to_epsg() if (not self.field.gdf.empty and self.field.gdf.crs) else 4326
-        utm_crs = 'EPSG:%d' % epsg_code
-
+        if self.platform_settings and self.platform_settings.gps:
+            utm_crs = 'EPSG:326%d' % self.platform_settings.gps.utm_zone
+        else:
+            utm_crs = 'EPSG:32631'  
         x, y = shp.transform_crs(wgs84_crs, utm_crs, [lat, lon])
+        
         self.set_position(x, y)
 
     @staticmethod
@@ -143,7 +145,15 @@ class RobotManager(metaclass=Singleton):
                     second_point = Point(traject_points[1])
                     path_orientation = shp.get_orientation(first_point, second_point)
 
-                    self.set_position(first_point.x, first_point.y, path_orientation)
+                    lon = first_point.x
+                    lat = first_point.y
+
+                    self.set_position_latlon(lat, lon)
+                    
+                    robot_ref_state = redis_manager.get_json_value("robot.ref.state")
+                    if robot_ref_state is not None:
+                        robot_ref_state["R"] = [0.0, 0.0, path_orientation]
+                        redis_manager.set_json_value("robot.ref.state", robot_ref_state)
                     
         if not active:
             self.set_navigation_state('normal')
