@@ -28,7 +28,8 @@ class TrajectManager:
         else:
             new_row = gpd.GeoDataFrame({
                 'name': [self.info.name], 
-                'type': ['LineString']
+                'type': ['LineString'],
+                'raster_source': [self.info.raster_source]
             }, geometry=[geometry], crs=self.gdf.crs if not self.gdf.empty else "EPSG:4326")
             
             self.gdf = pd.concat([self.gdf, new_row], ignore_index=True)
@@ -62,4 +63,7 @@ class TrajectManager:
         row = self.gdf[self.gdf['name'] == self.info.name]
         geom = row.geometry.iloc[0]
         
-        return geom.__geo_interface__
+        return {
+            'geometry': geom.__geo_interface__,
+            'raster_source': self.info.raster_source
+        }

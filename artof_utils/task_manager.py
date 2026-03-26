@@ -49,9 +49,6 @@ class TaskManager:
             self.gdf.at[idx, 'hitch_name'] = self.info.hitch_name.value
             self.gdf.at[idx, 'implement'] = self.info.implement
             self.gdf.at[idx, 'raster_source'] = self.info.raster_source
-            self.gdf.at[idx, 'overlay_source'] = self.info.overlay_source
-            self.gdf['bounds'] = self.gdf.get('bounds', pd.Series(dtype=object))
-            self.gdf.at[idx, 'bounds'] = self.info.bounds
         else:
             new_row = gpd.GeoDataFrame({
                 'name': [self.name], 
@@ -60,8 +57,6 @@ class TaskManager:
                 'hitch_name': [self.info.hitch_name.value],
                 'implement': [self.info.implement],
                 'raster_source': [self.info.raster_source],
-                'overlay_source': [self.info.overlay_source],
-                'bounds': [self.info.bounds]
             }, geometry=[geometry], crs=self.gdf.crs if not self.gdf.empty else "EPSG:4326")
             
             self.gdf = pd.concat([self.gdf, new_row], ignore_index=True)
@@ -92,10 +87,6 @@ class TaskManager:
                 self.gdf.at[idx, 'hitch_name'] = self.info.hitch_name.value
                 self.gdf.at[idx, 'implement'] = self.info.implement
                 self.gdf.at[idx, 'raster_source'] = self.info.raster_source
-                self.gdf.at[idx, 'overlay_source'] = self.info.overlay_source
-                
-                self.gdf['bounds'] = self.gdf.get('bounds', pd.Series(dtype=object))
-                self.gdf.at[idx, 'bounds'] = self.info.bounds
                 
         return self.gdf
 
@@ -104,30 +95,9 @@ class TaskManager:
         """
         Exporteert de task inclusief de huidige geometrie en Leaflet overlay-data.
         """
-        geom = None
-        overlay_src = self.info.overlay_source
-        bounds_raw = self.info.bounds
 
-        if not self.gdf.empty and 'name' in self.gdf.columns:
-            row = self.gdf[self.gdf['name'] == self.name]
-            if not row.empty:
-                geom = row.geometry.iloc[0]
-                if 'overlay_source' in row.columns and pd.notna(row['overlay_source'].iloc[0]):
-                    overlay_src = row['overlay_source'].iloc[0]
-                if 'bounds' in row.columns and pd.notna(row['bounds'].iloc[0]):
-                    bounds_raw = row['bounds'].iloc[0]
-
-        if isinstance(bounds_raw, str):
-            try:
-                bounds_raw = ast.literal_eval(bounds_raw)
-            except (ValueError, SyntaxError):
-                bounds_raw = None
-
-        # shapley bounds to Leaflet bounds: [[miny, minx], [maxy, maxx]]
-        image_bounds = None
-        if bounds_raw and len(bounds_raw) == 4:
-            minx, miny, maxx, maxy = bounds_raw
-            image_bounds = [[miny, minx], [maxy, maxx]]
+        row = self.gdf[self.gdf['name'] == self.info.name]
+        geom = row.geometry.iloc[0] if not row.empty else None
 
         return {
             'name': self.name,
@@ -136,7 +106,5 @@ class TaskManager:
             'hitch_name': self.info.hitch_name.value,
             'implement': self.info.implement,
             'raster_source': self.info.raster_source,
-            'overlay_source': overlay_src,       
-            'image_bounds': image_bounds,        
             'geometry': geom.__geo_interface__ if geom else None
         }

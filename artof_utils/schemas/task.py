@@ -12,5 +12,3 @@ class Task(BaseModel):
     hitch_name: HitchName = Field(default=HitchName.HITCH_FB)
     implement: str = Field(default="", description="Naam van het gekoppelde werktuig")
     raster_source: Optional[str] = Field(default="", description="Optionele bron van rasterdata voor deze taak")
-    overlay_source: Optional[str] = Field(default="", description="Optionele bron van overlay data voor deze taak")
-    bounds: Optional[tuple] = Field(default=None, description="Optionele bounds van de rasterdata in (minx, miny, maxx, maxy)")

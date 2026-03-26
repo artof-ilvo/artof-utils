@@ -11,7 +11,8 @@ class Field(BaseModel):
     # optional fields
     id: Optional[str] = None
     field_path: Optional[str] = None
-    raster_path: Optional[str] = None
+    raster_source: Optional[str] = None
+    bounds: Optional[tuple] = None
     created_at: Optional[datetime] = None
 
     @field_validator('name')

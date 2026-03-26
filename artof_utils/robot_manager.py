@@ -1,3 +1,4 @@
+from os import path
 import time
 
 from artof_utils.singleton import Singleton
@@ -11,6 +12,7 @@ from artof_utils.gis import shape as shp
 from artof_utils.gis import polygon
 from artof_utils.schemas.settings import AutoMode
 from artof_utils.redis_manager import redis_manager
+from artof_utils.visualisation_manager import visualisation_manager
 from shapely.geometry import Point
 import artof_utils.paths as paths
 
@@ -32,7 +34,6 @@ class RobotManager(metaclass=Singleton):
 
         if paths.loaded:
             self.load_settings()
-            self.load_field()
 
         self.hitches = Hitches()
         self.navigation = Navigation()
@@ -50,6 +51,9 @@ class RobotManager(metaclass=Singleton):
     def load_field(self, gdf=None):
         print("Load Field ")
         self.field = FieldManager(get_current_field_name(), gdf)
+        as_applied = path.join(paths.fields, self.field.info.name, 'rasters')
+        visualisation_manager.initialize_field(self.field.info.bounds, resolution=0.000001, as_applied_path=as_applied )
+        visualisation_manager.load_static_layers(field=self.field)
 
     @staticmethod
     def get_navigation_modes():
@@ -110,7 +114,7 @@ class RobotManager(metaclass=Singleton):
         if yaw is not None:
             robot_ref_state["R"] = [0.0, 0.0, yaw]
         redis_manager.set_json_value("robot.ref.state", robot_ref_state)
-
+        
     @staticmethod
     def set_velocity(vx, omega):
         redis_manager.set_value('plc.control.navigation.velocity.longitudinal', vx)
@@ -194,6 +198,19 @@ class RobotManager(metaclass=Singleton):
         r['hitches'] = redis_data['hitch.states']
         r['implements'] = redis_data['implement.states']
         r['controller_info'] = redis_data['navigation.controller.info']
+
+        try:
+            robot_contour = redis_data.get('robot.contour')
+            implement_data = r.get('implements', {})
+            
+            visualisation_manager.process_new_state(
+                implement_data=implement_data, 
+                robot_contour=robot_contour
+            )
+        except Exception as e:
+            print(f"[RobotManager] Vis-update error: {e}")
+
+        return r
 
         return r
 

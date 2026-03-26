@@ -25,7 +25,18 @@ class FieldManager:
         
         self.traject_manager = TrajectManager(self.gdf)
         self.task_managers: list[TaskManager] = []
+        self.info.bounds = self._calculate_bounds()
         self._parse_tasks()
+
+    def _calculate_bounds(self):
+        if self.gdf.empty or 'name' not in self.gdf.columns:
+            return None
+            
+        geofence_row = self.gdf[self.gdf['name'] == 'geofence']
+        
+        if not geofence_row.empty:
+            return tuple(geofence_row.geometry.total_bounds)
+        return None
 
     def _parse_tasks(self):
         """Kijkt of er al taken in het GDF zitten en maakt er TaskManagers van."""
@@ -62,6 +73,7 @@ class FieldManager:
         Updatet de grens van het veld. 
         Verwacht een puur Shapely Polygon object vanuit de backend!
         """
+
         if not self.gdf.empty and 'name' in self.gdf.columns:
             mask = self.gdf['name'] == 'geofence'
         else:
@@ -69,13 +81,22 @@ class FieldManager:
 
         if mask.any():
             self.gdf.loc[mask, 'geometry'] = geometry
+            self.gdf.loc[mask, 'raster_source'] = self.info.raster_source
         else:
             new_row = gpd.GeoDataFrame({
                 'name': ['geofence'], 
-                'type': ['polygon']
-            }, geometry=[geometry], crs=self.gdf.crs if not self.gdf.empty else "EPSG:4326")
+                'type': ['polygon'],
+                'raster_source': [self.info.raster_source]
+            }, geometry=[geometry], crs=self.gdf.crs if getattr(self.gdf, 'crs', None) else "EPSG:4326")
             self.gdf = pd.concat([self.gdf, new_row], ignore_index=True)
+            
+            mask = self.gdf['name'] == 'geofence' 
         
+        new_bounds = tuple(geometry.bounds)
+        self.info.bounds = new_bounds
+        
+        self.gdf.loc[mask, 'bounds'] = str(new_bounds)
+
         self._sync_gdfs()
         return self.gdf
 
@@ -157,8 +178,11 @@ class FieldManager:
 
         return {
             'name': self.name,
+            'bounds': self.info.bounds,
             'geofence_geometry': geofence_geom,
+            'geofence_raster': self.info.raster_source,
             'traject_geometry': traject_geom,
+            'traject_raster': self.traject_manager.info.raster_source,
             'tasks': task_dict
         }
 
@@ -176,8 +200,11 @@ class FieldManager:
             
         data = {
             'name': ctx['name'],
+            'bounds': ctx['bounds'],
             'geofence': wrap(ctx['geofence_geometry']),
+            'geofence_raster': ctx['geofence_raster'],
             'traject': wrap(ctx['traject_geometry']),
+            'traject_raster': ctx['traject_raster'],
             'tasks': formatted_tasks
         }
         return json.dumps(data)
