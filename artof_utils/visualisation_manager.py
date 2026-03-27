@@ -30,6 +30,7 @@ class CoreVisualisationManager:
         self.as_applied_filepath = None
         self.was_active = False
         self.saved_while_stopped = False
+        self.last_robot_contour_coords = None 
         
         # color lut
         self.lut = np.zeros((256, 4), dtype=np.uint8)
@@ -58,6 +59,7 @@ class CoreVisualisationManager:
         self.prev_full_width = None
         self.as_applied_filepath = as_applied_path + "/as_applied.tiff"
         os.makedirs(os.path.dirname(as_applied_path), exist_ok=True)
+        self.last_robot_contour_coords = None
 
     def load_static_layers(self, field):
         gdf = field.gdf
@@ -118,7 +120,8 @@ class CoreVisualisationManager:
             self._generate_binary_frame_no_lock()
 
     def process_new_state(self, implement_data, robot_contour=None):
-        if not hasattr(self, 'static_map'): return
+        """Returnt True als er een nieuwe map is gerenderd, False als er niets is gebeurd."""
+        if not hasattr(self, 'static_map'): return False
         
         val_l = redis_manager.get_value("plc.monitor.navigation.velocity.longitudinal")
         val_a = redis_manager.get_value("plc.monitor.navigation.velocity.angular")
@@ -128,16 +131,46 @@ class CoreVisualisationManager:
         is_moving = (abs(current_velocity_l) + abs(current_velocity_a)) > 0.01
 
         try:
+            r_coords = None
+            if robot_contour:
+                contour_list = robot_contour.get('latlng') if isinstance(robot_contour, dict) else robot_contour
+                if isinstance(contour_list, list) and len(contour_list) >= 3:
+                    r_coords = [(pt[1], pt[0]) if isinstance(pt, (list, tuple)) else (pt.get('lng', pt.get('lon')), pt.get('lat')) for pt in contour_list]
+            
+            # active or not?
+            is_active = False
+            if implement_data and isinstance(implement_data, dict):
+                for imp_name, implement in implement_data.items():
+                    if 'sections' in implement:
+                        for section in implement['sections']:
+                            if section.get('active'):
+                                is_active = True
+                                break
+
+            # if not active do nothing
+            if not is_moving and not is_active and r_coords == self.last_robot_contour_coords:
+                return False 
+            
+            self.last_robot_contour_coords = r_coords
+
             path_polygons = []    
             dose_polygons = defaultdict(list)
             
             current_sections = {}
             current_implement_geoms = []
-            is_active = False
 
             if implement_data and isinstance(implement_data, dict):
                 for imp_name, implement in implement_data.items():
                     if 'sections' in implement:
+                        # fb or rb
+                        hitch_name = implement.get('hitch', implement.get('hitch_name', 'fb'))
+                        if hitch_name in ['front', 'front_hitch']: 
+                            hitch_id = 'fb'
+                        elif hitch_name in ['rear', 'rear_hitch']: 
+                            hitch_id = 'rb'
+                        else:
+                            hitch_id = hitch_name
+
                         all_sec_coords = []
                         for i, section in enumerate(implement['sections']):
                             sec_id = f"{imp_name}_{i}"
@@ -148,10 +181,12 @@ class CoreVisualisationManager:
                             current_implement_geoms.append(Polygon(coords))
                             
                             if section.get('active'):
-                                is_active = True
                                 curr_geom = Polygon(coords)
                                 
-                                raw_feedback = redis_manager.get_value(f"plc.monitor.hitch_fb.feedback_sections.{i}")
+                                # get right feedback with dynamic hitch
+                                redis_key = f"plc.monitor.hitch_{hitch_id}.feedback_sections.{i}"
+                                raw_feedback = redis_manager.get_value(redis_key)
+                                
                                 feedback_val = int(raw_feedback) if raw_feedback is not None else 0
                                 feedback_val = max(0, min(255, feedback_val)) 
                                 
@@ -181,12 +216,8 @@ class CoreVisualisationManager:
                 self.prev_sections.update(current_sections)
 
             robot_geom = None
-            if robot_contour:
-                contour_list = robot_contour.get('latlng') if isinstance(robot_contour, dict) else robot_contour
-                if isinstance(contour_list, list) and len(contour_list) >= 3:
-                    r_coords = [(pt[1], pt[0]) if isinstance(pt, (list, tuple)) else (pt.get('lng', pt.get('lon')), pt.get('lat')) for pt in contour_list]
-                    if len(r_coords) >= 3:
-                        robot_geom = Polygon(r_coords)
+            if r_coords and len(r_coords) >= 3:
+                robot_geom = Polygon(r_coords)
 
             with self.lock:
                 if path_polygons:
@@ -223,8 +254,11 @@ class CoreVisualisationManager:
                         threading.Thread(target=self.save_as_applied_to_disk, args=(self.as_applied_filepath,)).start()
                     self.saved_while_stopped = True 
 
+            return True
+
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error in process_new_state: {e}")
+            return False
 
     def _generate_binary_frame_no_lock(self):
         img = Image.fromarray(self.live_map, mode='RGBA')
@@ -318,17 +352,29 @@ class VisualisationManager:
                     out_q.put(core.get_latest_frame())
                     
                 elif cmd == 'UPDATE':
-                    core.process_new_state(msg[1], msg[2])
+                    latest_msg = msg
                     
-                    while not out_q.empty():
-                        try: out_q.get_nowait()
-                        except: pass
+                    while not in_q.empty():
+                        try:
+                            next_msg = in_q.get_nowait()
+                            if next_msg[0] == 'UPDATE':
+                                latest_msg = next_msg
+                        except Exception:
+                            break
+
+                    # Only render when there are changes
+                    has_new_frame = core.process_new_state(latest_msg[1], latest_msg[2])
+                    
+                    if has_new_frame:
+                        while not out_q.empty():
+                            try: out_q.get_nowait()
+                            except: pass
+                            
+                        frame = core.get_latest_frame()
+                        if frame:
+                            out_q.put(frame)
                         
-                    frame = core.get_latest_frame()
-                    if frame:
-                        out_q.put(frame)
             except Exception as e:
                 print(f"[Visualisation Worker Error] {e}")
-
 
 visualisation_manager = VisualisationManager()
