@@ -161,15 +161,6 @@ class CoreVisualisationManager:
 
             if implement_data and isinstance(implement_data, dict):
                 for imp_name, implement in implement_data.items():
-                    if 'sections' in implement:
-                        # fb or rb
-                        hitch_name = implement.get('hitch', implement.get('hitch_name', 'fb'))
-                        if hitch_name in ['front', 'front_hitch']: 
-                            hitch_id = 'fb'
-                        elif hitch_name in ['rear', 'rear_hitch']: 
-                            hitch_id = 'rb'
-                        else:
-                            hitch_id = hitch_name
 
                         all_sec_coords = []
                         for i, section in enumerate(implement['sections']):
@@ -184,8 +175,9 @@ class CoreVisualisationManager:
                                 curr_geom = Polygon(coords)
                                 
                                 # get right feedback with dynamic hitch
-                                redis_key = f"plc.monitor.hitch_{hitch_id}.feedback_sections.{i}"
-                                raw_feedback = redis_manager.get_value(redis_key)
+                                redis_key_fb = f"plc.monitor.hitch_fb.feedback_sections.{i}"
+                                redis_key_rb = f"plc.monitor.hitch_rb.feedback_sections.{i}"
+                                raw_feedback = redis_manager.get_value(redis_key_fb) if redis_manager.get_value(redis_key_fb) is not None else redis_manager.get_value(redis_key_rb)
                                 
                                 feedback_val = int(raw_feedback) if raw_feedback is not None else 0
                                 feedback_val = max(0, min(255, feedback_val)) 

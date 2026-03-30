@@ -205,7 +205,7 @@ class RobotManager(metaclass=Singleton):
             
             visualisation_manager.process_new_state(
                 implement_data=implement_data, 
-                robot_contour=robot_contour
+                robot_contour=robot_contour,
             )
         except Exception as e:
             print(f"[RobotManager] Vis-update error: {e}")
