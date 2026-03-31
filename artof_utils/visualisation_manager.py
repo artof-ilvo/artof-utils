@@ -22,7 +22,7 @@ class CoreVisualisationManager:
     def __init__(self):
         self.bounds = None
         self.resolution = None
-        self.lock = threading.Lock() 
+        self.lock = threading.RLock() 
         self.latest_frame = None
         self.prev_sections = {}
         self.prev_full_width = None  
@@ -270,6 +270,30 @@ class CoreVisualisationManager:
             ) as dst:
                 dst.write(self.as_applied_data, 1)
 
+    def reset_and_archive_as_applied(self):
+        with self.lock:
+            print("Resetting task and archiving as-applied data...")
+            if not self.as_applied_filepath or not os.path.exists(self.as_applied_filepath):
+                self.as_applied_data.fill(0)
+                self._generate_binary_frame_no_lock()
+                return
+
+            timestamp = time.strftime("%Y%m%d-%H%M%S")
+            directory = os.path.dirname(self.as_applied_filepath)
+            filename = os.path.basename(self.as_applied_filepath)
+            name, ext = os.path.splitext(filename)
+            archived_path = os.path.join(directory, f"{name}_{timestamp}{ext}")
+
+            try:
+                self.save_as_applied_to_disk(self.as_applied_filepath)
+                os.rename(self.as_applied_filepath, archived_path)
+                
+                self.as_applied_data.fill(0)
+                self._generate_binary_frame_no_lock()
+                self.save_as_applied_to_disk(self.as_applied_filepath)
+            except Exception as e:
+                print(f"Error archiveren: {e}")
+
                 
 class VisualisationManager:
     def __init__(self):
@@ -313,6 +337,10 @@ class VisualisationManager:
                     self.latest_frame = frame
             except Exception:
                 pass
+
+    def reset_task(self):
+        print("Reset task command received in VisualisationManager.")
+        self.input_q.put(('RESET_TASK',))
 
     @staticmethod
     def _worker_loop(in_q, out_q):
@@ -365,6 +393,11 @@ class VisualisationManager:
                         frame = core.get_latest_frame()
                         if frame:
                             out_q.put(frame)
+
+                elif cmd == 'RESET_TASK':
+                    print("Processing reset task command in worker loop...")
+                    core.reset_and_archive_as_applied()
+                    out_q.put(core.get_latest_frame())
                         
             except Exception as e:
                 print(f"[Visualisation Worker Error] {e}")
