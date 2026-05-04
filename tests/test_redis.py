@@ -1,6 +1,6 @@
 from unittest import TestCase
 from artof_utils.schemas.state import State
-from artof_utils.redis import RedisServer
+from artof_utils.redis_manager import RedisServer
 from os import getenv
 import artof_utils.paths as paths
 
