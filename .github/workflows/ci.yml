@@ -38,8 +38,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          apt-get update -qy
-          apt-get install -y redis-tools
           pip install --upgrade pip
           pip install coverage pytest
           pip install -r requirements.txt
@@ -47,7 +45,7 @@ jobs:
       - name: Check Redis connection
         run: |
           echo "Is Redis Working?"
-          redis-cli -h $REDIS_HOST -p $REDIS_PORT PING
+          python -c "import os, redis; print(redis.Redis(host=os.environ['REDIS_HOST'], port=int(os.environ['REDIS_PORT'])).ping())"
 
       - name: Run unit tests
         run: |
