@@ -149,6 +149,6 @@
     "as_applied": {
         "record": "bool",
         "session": "string",
-        "heartbeat": "double"
+        "heartbeat": "float"
     }
 }
