@@ -4,6 +4,7 @@
         "width": 1.5,
         "length": 3.8,
         "wheel_diameter": 0.7,
+        "config": "ackermann",
         "transform": {
             "T": [
                 0,
