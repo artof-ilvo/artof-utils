@@ -39,6 +39,11 @@ class HitchName(str, Enum):
     HITCH_FB = "FB"
     HITCH_RB = "RB"
 
+class VehicleConfig(str, Enum):
+    OMNI = "omni"
+    DIFF = "diff"
+    ACKERMANN = "ackermann"
+    _4WD4WS = "4wd4ws"
 
 class Transform(BaseModel):
     T: list[float] = [0.0, 0.0, 0.0]
@@ -66,6 +71,7 @@ class Robot(BaseModel):
     width: float = 1.0
     length: float = 1.0
     wheel_diameter: float = 0.5
+    config: VehicleConfig = VehicleConfig.ACKERMANN
     transform: Transform
     transform_center: Transform
     transform_head: Transform
@@ -85,6 +91,9 @@ class AutoVelocity(BaseModel):
     min: float = 0.0
     max: float = 1.0
 
+class AutoAccel(BaseModel):
+    linear: float = 0.0
+    angular: float = 0.1
 
 class NavMode(BaseModel):
     id: int
@@ -111,6 +120,7 @@ class Gps(BaseModel):
 class PlatformSettings(BaseModel):
     name: str
     robot: Robot
+    auto_max_accel: AutoAccel
     auto_velocity: AutoVelocity
     nav_modes: list[NavMode]
     auto_modes: list[AutoMode]

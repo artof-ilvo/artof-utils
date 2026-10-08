@@ -11,6 +11,7 @@ class Section(BaseModel):
     width: float = 0.0
     up: float = 0.03
     down: float = 0.03
+    rate: int = 0
     link_length: Optional[float] = None
     repeats: Optional[int] = None
     offset: Optional[float] = None

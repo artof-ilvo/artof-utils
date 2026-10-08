@@ -89,7 +89,8 @@ jobs:
   stage-testpypi:
     name: >-
       Publish artof-utils to TestPyPI
-#    if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes
+    # Pull requests only test and build; merging into main publishes
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
     - build
     runs-on: ubuntu-latest
@@ -115,7 +116,8 @@ jobs:
   deploy-pypi:
     name: >-
       Publish artof-utils to PyPI
-#    if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes
+    # Pull requests only test and build; merging into main publishes
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
     - build
     runs-on: ubuntu-latest
