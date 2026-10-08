@@ -48,8 +48,9 @@ def session_path(field_name: str, file_name: str) -> str:
     return path.join(as_applied_dir(field_name), file_name)
 
 
-def read_session(field_name: str, file_name: str) -> gpd.GeoDataFrame:
-    return gpd.read_file(session_path(field_name, file_name), layer=LAYER)
+def read_session(field_name: str, file_name: str, skip: int = 0) -> gpd.GeoDataFrame:
+    """Features of a session; ``skip`` leaves out the first features (to only read what was appended since)."""
+    return gpd.read_file(session_path(field_name, file_name), layer=LAYER, skip_features=skip)
 
 
 def swept_polygon(previous_ring, current_ring) -> Polygon:

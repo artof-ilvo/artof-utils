@@ -58,6 +58,7 @@ class TestAsApplied(TestCase):
         self.assertEqual(gdf['rate'].tolist(), [80.0, 0.0])
         self.assertEqual(gdf['section'].tolist(), ['CR', 'CR'])
         self.assertAlmostEqual(gdf.geometry.iloc[0].area, 0.6)
+        self.assertEqual(as_applied.read_session('field', recorder.files[0], skip=1)['rate'].tolist(), [0.0])
 
     def test_flush_without_movement_creates_no_file(self):
         # Arrange
