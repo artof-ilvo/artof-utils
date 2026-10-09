@@ -5,7 +5,7 @@ import artof_utils.helpers.task as task
 class TestState(TestCase):
 
     def test_get_hitch_choices(self):
-        expected_hitches = {'FF', 'FB', 'RB'}
+        expected_hitches = {'FF', 'FB', 'RB', 'R', 'L', 'RF'}
         hitch_choices = set([choice[0] for choice in task.get_hitch_choices()])
         self.assertEqual(hitch_choices, expected_hitches)
 

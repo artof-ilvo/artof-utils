@@ -35,9 +35,16 @@ class HitchType(str, Enum):
 
 
 class HitchName(str, Enum):
+    """
+    Hitch names allowed in settings.json. A name must match the hitch_<lowercase name> entries in config.json:
+    the Redis/PLC variables plc.control.hitch_<name>.* and plc.monitor.hitch_<name>.* are generated from those.
+    """
     HITCH_FF = "FF"
     HITCH_FB = "FB"
+    HITCH_RF = "RF"
     HITCH_RB = "RB"
+    HITCH_R = "R"
+    HITCH_L = "L"
 
 class VehicleConfig(str, Enum):
     OMNI = "omni"
@@ -51,7 +58,6 @@ class Transform(BaseModel):
 
 
 class Hitch(BaseModel):
-    id: int = 0.0
     name: HitchName = HitchName.HITCH_FB
     min: float = 0.0
     max: float = 0.0
