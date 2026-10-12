@@ -109,6 +109,8 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: https://test.pypi.org/legacy/
+        # Merges without a version bump publish nothing instead of failing
+        skip-existing: true
 
 
   deploy-pypi:
@@ -134,3 +136,6 @@ jobs:
         path: dist/
     - name: Publish distribution to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        # Merges without a version bump publish nothing instead of failing
+        skip-existing: true
