@@ -71,7 +71,7 @@ class RedisServer(metaclass=Singleton):
         if self.variable_in_config(variable):
             var_type = self.variables[variable]["type"]
 
-        if var_type in ["float", "double"]:
+        if var_type in ["lfloat", "float", "double"]:
             try:
                 val = float(value)
             except TypeError:
