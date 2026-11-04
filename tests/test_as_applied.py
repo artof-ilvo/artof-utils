@@ -65,25 +65,45 @@ class TestAsApplied(TestCase):
         skipped = as_applied.read_layer('field', recorder.session, as_applied.SECTIONS, skip=1)
         self.assertEqual(skipped['rate'].tolist(), [0.0])
 
-    def test_points_are_logged_on_movement_or_period(self):
+    def test_points_are_logged_on_distance_or_period(self):
         # Arrange
-        recorder = as_applied.AsAppliedRecorder('field', CRS, point_period=5.0, start=START)
+        recorder = as_applied.AsAppliedRecorder('field', CRS, point_period=5.0, point_distance=0.5, start=START)
         # Act
         logged = [recorder.log_point([554300.0, 5647960.0], attributes(), START),
                   recorder.log_point([554300.0, 5647960.05], attributes(), START + timedelta(seconds=1)),
                   recorder.log_point([554300.0, 5647960.5], attributes(speed=0.8), START + timedelta(seconds=2)),
                   recorder.log_point([554300.0, 5647960.5], attributes(on=False), START + timedelta(seconds=8))]
         recorder.flush()
-        recorder.log_point([554301.0, 5647960.5], attributes(speed=1.0, mode=''), START + timedelta(seconds=9))
+        logged.append(recorder.log_point([554301.0, 5647960.5], attributes(speed=1.0, mode=''),
+                                         START + timedelta(seconds=9)))
         recorder.flush()
         # Assert
-        self.assertEqual(logged, [True, False, True, True])
+        self.assertEqual(logged, [1, 0, 1, 1, 2])
         self.assertEqual(recorder.layers, [as_applied.POINTS])
         gdf = as_applied.read_layer('field', recorder.session, as_applied.POINTS)
-        self.assertEqual(len(gdf), 4)
-        self.assertEqual(gdf['plc.monitor.wheel_f.speed'].tolist(), [0.5, 0.8, 0.5, 1.0])
-        self.assertEqual(gdf['pc.hitch.active'].tolist(), [True, True, False, True])
-        self.assertEqual(gdf['pc.mode'].tolist(), ['auto', 'auto', 'auto', ''])
+        self.assertEqual(len(gdf), 5)
+        self.assertEqual(gdf['plc.monitor.wheel_f.speed'].tolist(), [0.5, 0.8, 0.5, 1.0, 1.0])
+        self.assertEqual(gdf['pc.hitch.active'].tolist(), [True, True, False, True, True])
+        self.assertEqual(gdf['pc.mode'].tolist(), ['auto', 'auto', 'auto', '', ''])
+
+    def test_points_are_equidistant_along_the_path(self):
+        # Arrange: irregular sample spacing, as from a poll loop that stalls while writing
+        recorder = as_applied.AsAppliedRecorder('field', CRS, point_distance=0.4, start=START)
+        steps = [0.0, 1.28, 2.56, 3.84, 6.72, 8.0, 8.13, 8.26, 9.54, 12.4]
+        # Act
+        for i, y in enumerate(steps):
+            recorder.log_point([554300.0, 5647960.0 + y], attributes(speed=i), START + timedelta(seconds=i))
+        recorder.flush()
+        # Assert
+        gdf = as_applied.read_layer('field', recorder.session, as_applied.POINTS)
+        spacing = gdf.geometry.distance(gdf.geometry.shift()).iloc[1:]
+        self.assertEqual(len(gdf), 32)
+        for distance in spacing:
+            self.assertAlmostEqual(distance, 0.4)
+        self.assertEqual(gdf['time'].iloc[1], '2026-10-08T12:00:00.312+00:00')  # 0.4 m of the 1.28 m in the first second
+        self.assertEqual(gdf['plc.monitor.wheel_f.speed'].iloc[1], 1)  # attributes of the sample that reached it
+        self.assertAlmostEqual(gdf['lat'].iloc[0], 50.9807, places=4)
+        self.assertAlmostEqual(gdf['lon'].iloc[0], 3.7735, places=4)
 
     def test_layer_info_and_fids(self):
         # Arrange

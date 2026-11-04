@@ -17,6 +17,7 @@ from typing import Callable, Optional, Union
 import geopandas as gpd
 import pandas as pd
 import pyogrio
+from pyproj import Transformer
 from shapely.geometry import Point, Polygon
 from shapely.ops import unary_union
 
@@ -209,21 +210,28 @@ class AsAppliedRecorder:
 
     Feed it at a steady rate (the task-map addon polls redis): ``update(states)`` with ``implement.states`` for the
     sections layer, ``log_point(xy, attributes)`` with the robot reference point and all redis variables for the
-    points layer. A section or point is written once it moved more than ``min_distance`` meters; points are also logged
-    every ``point_period`` seconds while standing still, so parameter changes are not lost.
+    points layer. A section is written once it moved more than ``min_distance`` meters. Points are spaced
+    ``point_distance`` meters apart along the driven path, independent of the poll rate or speed: positions (and times)
+    are interpolated between successive samples, which take the attributes of the sample that reached them. Samples
+    closer than ``min_distance`` to the previous one are ignored (GPS noise while standing still). Points are also
+    logged every ``point_period`` seconds without a point, so parameter changes are not lost.
     """
 
     def __init__(self, field_name: str, crs, min_distance: float = 0.1, point_period: float = 5.0,
-                 start: Optional[datetime] = None):
+                 start: Optional[datetime] = None, point_distance: float = 1.0):
         self.field_name = field_name
         self.crs = crs
         self.min_distance = min_distance
         self.point_period = point_period
+        self.point_distance = max(point_distance, min_distance)
+        self.to_wgs84 = Transformer.from_crs(crs, 'EPSG:4326', always_xy=True)
         self.session = session_id(start)
         self.sections = LayerWriter(layer_path(field_name, self.session, SECTIONS), SECTIONS, crs)
         self.points = LayerWriter(layer_path(field_name, self.session, POINTS), POINTS, crs)
         self.previous_rings: dict[tuple[str, str], list] = {}
-        self.last_point: Optional[tuple[Point, datetime]] = None
+        self.last_sample: Optional[tuple[Point, datetime]] = None  # last sample that moved at least min_distance
+        self.last_logged: Optional[datetime] = None
+        self.travelled = 0.0  # path length from the last distance-spaced point to last_sample
 
     def update(self, states: Optional[dict], time: Optional[datetime] = None) -> None:
         for implement_name, implement in (states or {}).items():
@@ -245,26 +253,47 @@ class AsAppliedRecorder:
                                    'geometry': swept_polygon(previous_ring, ring)})
                 self.previous_rings[key] = ring
 
-    def log_point(self, xy, attributes: Union[dict, Callable[[], dict]], time: Optional[datetime] = None) -> bool:
+    def log_point(self, xy, attributes: Union[dict, Callable[[], dict]], time: Optional[datetime] = None) -> int:
         """
-        Log the robot position with its attributes; returns whether it was logged.
-        :param attributes: dict, or a function returning it (only called when the point is logged)
+        Log the robot position with its attributes; returns how many points were logged (0 or more).
+        :param attributes: dict, or a function returning it (only called when a point is logged)
         """
         if not xy or len(xy) < 2:
-            return False
+            return 0
         time = time or now()
         point = Point(xy[0], xy[1])
-        if self.last_point is not None:
-            last_point, last_time = self.last_point
-            moved = point.distance(last_point) >= self.min_distance
-            waited = (time - last_time).total_seconds() >= self.point_period
-            if not moved and not waited:
-                return False
+        if self.last_sample is None:
+            self.last_sample = (point, time)
+            return self._add([(point, time)], attributes)
+
+        start, start_time = self.last_sample
+        segment = start.distance(point)
+        new = []
+        if segment >= self.min_distance:
+            # Walk along the segment and drop a point every point_distance meters of path
+            position = 0.0
+            while self.travelled + segment - position >= self.point_distance:
+                position += self.point_distance - self.travelled
+                self.travelled = 0.0
+                fraction = position / segment
+                new.append((Point(start.x + fraction * (point.x - start.x), start.y + fraction * (point.y - start.y)),
+                            start_time + fraction * (time - start_time)))
+            self.travelled += segment - position
+            self.last_sample = (point, time)
+        if not new and (time - self.last_logged).total_seconds() >= self.point_period:
+            new.append((point, time))
+        return self._add(new, attributes)
+
+    def _add(self, points: list[tuple[Point, datetime]], attributes: Union[dict, Callable[[], dict]]) -> int:
+        if not points:
+            return 0
         if callable(attributes):
             attributes = attributes()
-        self.points.add({'time': timestamp(time), **attributes, 'geometry': point})
-        self.last_point = (point, time)
-        return True
+        for point, time in points:
+            lon, lat = self.to_wgs84.transform(point.x, point.y)
+            self.points.add({'time': timestamp(time), 'lat': lat, 'lon': lon, **attributes, 'geometry': point})
+        self.last_logged = points[-1][1]
+        return len(points)
 
     def flush(self) -> int:
         return self.sections.flush() + self.points.flush()
